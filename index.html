@@ -1096,6 +1096,44 @@
                 }
             }
 
+            // Fungsi pengganti google.script.run yang aman melalui server Vercel & Google Apps Script
+            const callServer = async (functionName, payload) => {
+                try {
+                    // Cek apakah sedang dibuka langsung di lingkungan Apps Script asli (/dev atau /exec murni Google)
+                    if (typeof google !== 'undefined' && google.script && google.script.run && !window.location.hostname.includes('vercel.app')) {
+                        return new Promise((resolve, reject) => {
+                            let runner = google.script.run
+                                .withSuccessHandler(resolve)
+                                .withFailureHandler(reject);
+                            
+                            if (payload !== undefined) {
+                                runner[functionName](payload);
+                            } else {
+                                runner[functionName]();
+                            }
+                        });
+                    }
+            
+                    // Jika dibuka dari domain Vercel, arahkan melalui Vercel Serverless Function (/api/proxy)
+                    const response = await fetch('/api/proxy', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: functionName,
+                            payload: payload
+                        })
+                    });
+            
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    console.error("API Error:", error);
+                    return { success: false, message: "Koneksi ke server gagal: " + error.message };
+                }
+            };
+
             const savedUser = localStorage.getItem('overtime_user_session');
             if (savedUser) {
                 try {
@@ -1118,73 +1156,46 @@
         // ==========================================
         // 2. SISTEM LOGIN & LOGOUT
         // ==========================================
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
-            
+        
             const usernameInput = document.getElementById('login-username').value.trim();
             const passwordInput = document.getElementById('login-password').value.trim();
             const errorBox = document.getElementById('login-error');
             const submitBtn = e.target.querySelector('button[type="submit"]');
-
+        
             if (errorBox) errorBox.classList.add('hidden');
-
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memeriksa Database...';
             }
-
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(response) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Masuk ke Sistem';
-                        }
-
-                        if (response.success) {
-                            currentUser = response.user;
-                            currentUserRole = (response.role || 'user').toString().trim().toLowerCase();
-
-                            localStorage.setItem('overtime_user_session', JSON.stringify(currentUser));
-
-                            // Simpan otomatis kredensial jika centang aktif
-                            const rememberMe = document.getElementById('login-remember');
-                            if (rememberMe && rememberMe.checked) {
-                                localStorage.setItem('overtime_saved_credentials', JSON.stringify({
-                                    username: usernameInput,
-                                    password: passwordInput
-                                }));
-                            } else {
-                                localStorage.removeItem('overtime_saved_credentials');
-                            }
-
-                            applyRolePermissions();
-                            updateProfileHeader();
-                            
-                            document.getElementById('login-screen').classList.add('hidden');
-                            loadAllDataFromServer();
-                            showToast(`Selamat datang, ${currentUser.nama}!`, 'success');
-
-                        } else {
-                            if (errorBox) {
-                                errorBox.innerHTML = `<i class="fa-solid fa-circle-exclamation text-sm"></i> <span>${response.message}</span>`;
-                                errorBox.classList.remove('hidden');
-                            } else {
-                                alert(response.message);
-                            }
-                        }
-                    })
-                    .withFailureHandler(function(error) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Masuk ke Sistem';
-                        }
-                        alert("Gagal terhubung ke Database: " + error.message);
-                    })
-                    .authLogin(usernameInput, passwordInput);
+        
+            // 🛠️ GANTI GOOGLE.SCRIPT.RUN DENGAN CALLSERVER
+            const response = await callServer('authLogin', { username: usernameInput, password: passwordInput });
+        
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Masuk ke Sistem';
+            }
+        
+            if (response && response.success) {
+                currentUser = response.user;
+                currentUserRole = (response.role || 'user').toString().trim().toLowerCase();
+                localStorage.setItem('overtime_user_session', JSON.stringify(currentUser));
+        
+                applyRolePermissions();
+                updateProfileHeader();
+                document.getElementById('login-screen').classList.add('hidden');
+                loadAllDataFromServer();
+                showToast(`Selamat datang, ${currentUser.nama}!`, 'success');
+            } else {
+                if (errorBox) {
+                    errorBox.innerHTML = `<i class="fa-solid fa-circle-exclamation text-sm"></i> <span>${response ? response.message : "Gagal login"}</span>`;
+                    errorBox.classList.add('hidden'); // Ubah jadi remove jika ingin error muncul
+                }
             }
         }
-
+        
         function handleLogout() {
             currentUser = null;
             currentUserRole = 'user';
@@ -1263,24 +1274,16 @@
         // ==========================================
         // SINKRONISASI DATA UTAMA DARI SERVER
         // ==========================================
-        function loadAllDataFromServer() {
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(res) {
-                        if (res && res.success) {
-                            overtimeRequests = res.data || [];
-                            renderAllViews();
-                            generateDynamicNotifications();
-                            // Tambahkan baris ini agar data master karyawan selalu ditarik
-                            fetchKaryawanList();
-                        } else {
-                            showToast("Gagal memuat data: " + (res ? res.message : "Data kosong"), "error");
-                        }
-                    })
-                    .withFailureHandler(function(err) {
-                        showToast("Koneksi server gagal: " + err.message, "error");
-                    })
-                    .getAllOvertimeData();
+        async function loadAllDataFromServer() {
+            // 🛠️ GANTI DENGAN CALLSERVER
+            const res = await callServer('getAllOvertimeData');
+            if (res && res.success) {
+                overtimeRequests = res.data || [];
+                renderAllViews();
+                generateDynamicNotifications();
+                fetchKaryawanList();
+            } else {
+                showToast("Gagal memuat data: " + (res ? res.message : "Data kosong"), "error");
             }
         }
 
@@ -1677,7 +1680,7 @@
             }
         }
 
-        function handleOvertimeSubmit(e) {
+        async function handleOvertimeSubmit(e) {
             e.preventDefault();
             
             const submitBtn = document.getElementById('btn-submit-request');
@@ -1721,42 +1724,32 @@
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim Pengajuan...';
             }
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(res) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
-                        }
-                        
-                        if (res.success) {
-                            showToast(res.message, "success");
-                            document.getElementById('overtime-form').reset();
-                            
-                            if (currentUser && currentUser.role !== 'admin') {
-                                document.getElementById('form-npk').value = currentUser.npk;
-                            } else {
-                                document.getElementById('form-npk').value = '';
-                            }
-                            
-                            checkDailySubmissionLock();
-                            loadAllDataFromServer();
-                            navigateTo('history');
-                        } else {
-                            alert(res.message);
-                        }
-                    })
-                    .withFailureHandler(function(err) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
-                        }
-                        alert("Gagal mengirim ke Spreadsheet: " + err.message);
-                    })
-                    .submitOvertimeRequest(payload);
+            // 🛠️ Panggil via callServer
+            const res = await callServer('submitOvertimeRequest', payload);
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
+            }
+            
+            if (res && res.success) {
+                showToast(res.message, "success");
+                document.getElementById('overtime-form').reset();
+                
+                if (currentUser && currentUser.role !== 'admin') {
+                    document.getElementById('form-npk').value = currentUser.npk;
+                } else {
+                    document.getElementById('form-npk').value = '';
+                }
+                
+                checkDailySubmissionLock();
+                loadAllDataFromServer();
+                navigateTo('history');
+            } else {
+                alert(res ? res.message : "Gagal mengirim pengajuan");
             }
         }
-
+        
         function renderApprovalsView() {
             const tbody = document.getElementById('approvals-table-body');
             const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
@@ -1921,7 +1914,7 @@
             document.getElementById('edit-modal').classList.add('hidden');
         }
 
-        function saveEditRequest(e) {
+        async function saveEditRequest(e) {
             e.preventDefault();
             const submitBtn = document.getElementById('btn-save-edit');
             const id = document.getElementById('edit-id').value;
@@ -1961,29 +1954,20 @@
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
             }
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(res) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Simpan Perubahan';
-                        }
-                        if (res.success) {
-                            showToast(res.message || 'Pengajuan lembur berhasil diperbarui.', 'success');
-                            closeEditModal();
-                            loadAllDataFromServer();
-                        } else {
-                            alert(res.message);
-                        }
-                    })
-                    .withFailureHandler(function(err) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Simpan Perubahan';
-                        }
-                        alert("Gagal memperbarui ke Spreadsheet: " + err.message);
-                    })
-                    .editOvertimeRequest(payload);
+            // 🛠️ Panggil via callServer
+            const res = await callServer('editOvertimeRequest', payload);
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Simpan Perubahan';
+            }
+
+            if (res && res.success) {
+                showToast(res.message || 'Pengajuan lembur berhasil diperbarui.', 'success');
+                closeEditModal();
+                loadAllDataFromServer();
+            } else {
+                alert(res ? res.message : "Gagal memperbarui data");
             }
         }
 
@@ -2439,22 +2423,13 @@
             URL.revokeObjectURL(url);
         }
 
-        function fetchServerAdjustments() {
+        async function fetchServerAdjustments() {
             const periodeKey = getCurrentPeriodeKey();
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(res) {
-                        if (res && res.success) {
-                            adjustmentsMap = res.data || {};
-                            renderReportsView();
-                        } else {
-                            renderReportsView();
-                        }
-                    })
-                    .withFailureHandler(function() {
-                        renderReportsView();
-                    })
-                    .getAdjustmentsByPeriod(periodeKey);
+            // 🛠️ Panggil via callServer
+            const res = await callServer('getAdjustmentsByPeriod', { periodeKey: periodeKey });
+            if (res && res.success) {
+                adjustmentsMap = res.data || {};
+                renderReportsView();
             } else {
                 renderReportsView();
             }
@@ -2690,14 +2665,12 @@
 
             closeAdjustModal();
             renderReportsView();
-            showToast(`Data jam lembur ${currentAdjustTarget.nama} dikembalikan ke jam asli.`, 'info');
-
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withFailureHandler(function(err) {
-                        alert("Gagal menghapus data adjust di database: " + err.message);
-                    })
-                    .saveAdjustmentRecord(payload);
+            showToast(`Penyesuaian jam lembur untuk ${currentAdjustTarget.nama} berhasil disimpan!`, 'success');
+            
+            // 🛠️ Panggil via callServer
+            const res = await callServer('saveAdjustmentRecord', payload);
+            if (!res || !res.success) {
+                alert("Gagal sinkronisasi data adjust ke database: " + (res ? res.message : "Kesalahan server"));
             }
         }
 
@@ -2853,19 +2826,14 @@
                 // ==========================================
         // 7. MANAJEMEN DATA KARYAWAN (ADMIN ONLY)
         // ==========================================
-        function fetchKaryawanList() {
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(res => {
-                        if (res && res.success) {
-                            karyawanList = res.data || [];
-                            renderKaryawanTable();
-                        } else {
-                            showToast("Gagal muat Master Karyawan: " + (res ? res.message : ""), "error");
-                        }
-                    })
-                    .withFailureHandler(err => showToast("Koneksi gagal: " + err.message, "error"))
-                    .getMasterKaryawanList();
+        async function fetchKaryawanList() {
+            // 🛠️ GANTI DENGAN CALLSERVER
+            const res = await callServer('getMasterKaryawanList');
+            if (res && res.success) {
+                karyawanList = res.data || [];
+                renderKaryawanTable();
+            } else {
+                showToast("Gagal muat Master Karyawan: " + (res ? res.message : ""), "error");
             }
         }
 
@@ -2964,7 +2932,7 @@
             document.getElementById('karyawan-modal').classList.add('hidden');
         }
 
-        function handleKaryawanSubmit(e) {
+        async function handleKaryawanSubmit(e) {
             e.preventDefault();
             const submitBtn = document.getElementById('btn-submit-karyawan');
             const isEdit = document.getElementById('karyawan-is-edit').value === "true";
@@ -2972,8 +2940,8 @@
 
             const payload = {
                 isEdit: isEdit,
-                oldNpk: oldNpkEl ? oldNpkEl.value.trim() : "", // NPK lama untuk pencarian baris
-                npk: document.getElementById('karyawan-npk').value.trim(), // NPK baru
+                oldNpk: oldNpkEl ? oldNpkEl.value.trim() : "",
+                npk: document.getElementById('karyawan-npk').value.trim(),
                 nama: document.getElementById('karyawan-nama').value.trim(),
                 cabang: document.getElementById('karyawan-cabang').value,
                 jabatan: document.getElementById('karyawan-jabatan').value.trim(),
@@ -2987,33 +2955,24 @@
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
             }
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(res) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Simpan Karyawan';
-                        }
-                        if (res.success) {
-                            showToast(res.message, 'success');
-                            closeKaryawanModal();
-                            fetchKaryawanList();
-                            loadAllDataFromServer();
-                        } else {
-                            alert(res.message);
-                        }
-                    })
-                    .withFailureHandler(function(err) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Simpan Karyawan';
-                        }
-                        alert("Gagal memproses data karyawan: " + err.message);
-                    })
-                    .saveMasterKaryawan(payload);
+            // Panggil via callServer secara aman
+            const res = await callServer('saveMasterKaryawan', payload);
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Simpan Karyawan';
+            }
+
+            if (res && res.success) {
+                showToast(res.message, 'success');
+                closeKaryawanModal();
+                fetchKaryawanList();
+                loadAllDataFromServer();
+            } else {
+                alert(res ? res.message : "Gagal memproses data karyawan");
             }
         }
-
+        
         async function handleDeleteKaryawan(npk, nama) {
             const confirmed = await showCustomConfirm({
                 title: "Hapus Data Karyawan?",
@@ -3024,18 +2983,15 @@
 
             if (!confirmed) return;
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(function(res) {
-                        if (res.success) {
-                            showToast(res.message, 'info');
-                            fetchKaryawanList();
-                            loadAllDataFromServer();
-                        } else {
-                            showToast(res.message, 'error');
-                        }
-                    })
-                    .deleteMasterKaryawan(npk);
+            // Panggil via callServer secara aman
+            const res = await callServer('deleteMasterKaryawan', { id: npk });
+
+            if (res && res.success) {
+                showToast(res.message, 'info');
+                fetchKaryawanList();
+                loadAllDataFromServer();
+            } else {
+                showToast(res ? res.message : "Gagal menghapus", 'error');
             }
         }
 
