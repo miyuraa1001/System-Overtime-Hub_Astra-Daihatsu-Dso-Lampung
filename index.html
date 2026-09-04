@@ -1,0 +1,3044 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overtime Hub - System Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            900: '#0f172a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc; /* bg-slate-50 asli yang bersih */
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased h-full w-full flex flex-col">
+
+   <!-- SCREEN 0: LOGIN OVERLAY (FULL SCREEN TANPA SISA PUTIH) -->
+    <div id="login-screen" class="fixed inset-0 w-full h-full bg-slate-900/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md p-8 relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl"></div>
+            
+            <div class="text-center mb-8 relative z-10">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/30 mb-4">
+                    <i class="fa-solid fa-clock-rotate-left text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">OVERTIME HUB</h2>
+                <p class="text-xs text-slate-500 mt-1">Sistem Manajemen & Claim Payroll Lembur</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4 relative z-10" autocomplete="on">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-2">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                            <i class="fa-regular fa-user text-sm"></i>
+                        </span>
+                        <input type="text" id="login-username" name="username" required autocomplete="username" placeholder="Username atau Nama Lengkap" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                            <i class="fa-solid fa-lock text-sm"></i>
+                        </span>
+                        <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="Masukkan NPK Anda" class="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 focus:outline-none">
+                            <i id="toggle-password-icon" class="fa-regular fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CHECKBOX INGAT SAYA -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="login-remember" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20">
+                        <span class="text-xs text-slate-600 font-medium">Ingat Saya</span>
+                    </label>
+                </div>
+
+                <div id="login-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-sm"></i>
+                    <span>Username atau Password salah!</span>
+                </div>
+
+                <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all">
+                    Masuk ke Sistem
+                </button>
+            </form>
+
+            <div class="mt-8 pt-6 border-t border-slate-100 text-center relative z-10">
+                <p class="text-[11px] text-slate-400 font-medium">© 2026 PT Astra International Tbk - Daihatsu Sales Operation (DSO) Lampung. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR BACKDROP FOR MOBILE -->
+    <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-slate-900/50 z-40 lg:hidden hidden transition-opacity"></div>
+
+    <!-- MAIN WRAPPER -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between transition-all duration-300 transform -translate-x-full lg:translate-x-0">
+            <div>
+                <div class="h-16 flex items-center justify-between px-6 border-b border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+                            <i class="fa-solid fa-clock-rotate-left text-base"></i>
+                        </div>
+                        <span class="font-bold text-slate-800 text-base tracking-tight">OVERTIME HUB</span>
+                    </div>
+                    <button onclick="closeSidebar()" class="lg:hidden text-slate-400 hover:text-slate-600 p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <nav class="p-4 space-y-1">
+                    <button onclick="navigateTo('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-chart-pie w-5 text-center text-sm"></i>
+                        <span>Dashboard</span>
+                    </button>
+
+                    <div class="space-y-1">
+                        <button onclick="toggleSubmenu('my-overtime-submenu')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-user-clock w-5 text-center text-sm"></i>
+                                <span>My Overtime</span>
+                            </div>
+                            <i id="my-overtime-arrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
+                        </button>
+                        <div id="my-overtime-submenu" class="pl-9 space-y-1 hidden">
+                            <button onclick="navigateTo('new-request')" id="nav-new-request" class="w-full text-left py-2 px-3 rounded-lg text-xs font-medium text-slate-500 hover:text-blue-600 hover:bg-blue-50/50 transition-all">
+                                New Request
+                            </button>
+                            <button onclick="navigateTo('history')" id="nav-history" class="w-full text-left py-2 px-3 rounded-lg text-xs font-medium text-slate-500 hover:text-blue-600 hover:bg-blue-50/50 transition-all">
+                                History
+                            </button>
+                        </div>
+                    </div>
+
+                    <button onclick="navigateTo('approvals')" id="nav-approvals" class="admin-only w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-circle-check w-5 text-center text-sm"></i>
+                            <span>Approvals</span>
+                        </div>
+                        <span id="badge-pending-count" class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </button>
+
+                    <button onclick="navigateTo('reports')" id="nav-reports" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-chart-column w-5 text-center text-sm"></i>
+                        <span id="text-nav-reports">Reports / Payroll</span>
+                    </button>
+
+                    <!-- MENU KHUSUS ADMIN: DATA KARYAWAN -->
+                    <button onclick="navigateTo('karyawan')" id="nav-karyawan" class="admin-only w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-users-gear w-5 text-center text-sm"></i>
+                        <span>Data Karyawan</span>
+                    </button>
+
+                    <button onclick="navigateTo('settings')" id="nav-settings" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-sliders w-5 text-center text-sm"></i>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="p-4 border-t border-slate-100">
+                <button onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold transition-all">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Keluar Sistem</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative bg-slate-50">
+            
+            <!-- HEADER STICKY DENGAN EFEK KACA (BLUR/TRANSPARAN) -->
+            <header id="main-header" class="flex-shrink-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between gap-4 z-40 transition-all duration-200">
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-800 p-2 rounded-xl hover:bg-slate-100 transition-all" title="Buka/Tutup Menu">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                    <div class="relative hidden sm:block w-64 lg:w-80">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                        </span>
+                       <input type="text" id="global-search-input" oninput="handleGlobalSearch(this.value)" placeholder="Cari data lembur, NPK, nama..." class="w-full pl-9 pr-4 py-2 bg-slate-100 border-0 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <div class="relative" id="notif-wrapper">
+                        <button onclick="toggleNotifications(event)" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 relative">
+                            <i class="fa-regular fa-bell text-lg"></i>
+                            <span id="notif-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white hidden"></span>
+                        </button>
+                        
+                        <div id="notif-popover" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200/80 p-4 z-50">
+                            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                                <h4 class="font-bold text-xs text-slate-800">Notifikasi Sistem</h4>
+                                <span id="notif-count-text" class="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">0 Baru</span>
+                            </div>
+                            <div id="notif-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                <p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+                        <div class="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm" id="user-avatar">
+                            US
+                        </div>
+                        <div class="hidden md:block text-left">
+                            <div id="header-user-name" class="font-bold text-slate-800 text-xs">Pengguna</div>
+                            <div id="header-user-role" class="text-[10px] text-slate-400 font-medium">Karyawan - D660</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- MAIN SCROLL AREA -->
+            <main id="main-scroll-area" onscroll="handleHeaderScroll()" class="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 custom-scrollbar bg-slate-50">
+                
+                <!-- PAGE 1: DASHBOARD -->
+                <div id="page-dashboard" class="page-content space-y-6">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Overtime Management</h1>
+                        <p class="text-xs text-slate-500 mt-0.5">Ringkasan aktivitas dan pengajuan lembur karyawan bulan ini.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400">Total Jam Bulan Ini</p>
+                                    <h3 id="kpi-total-hours" class="text-2xl font-bold text-slate-800 mt-1">0,0 Jam</h3>
+                                </div>
+                                <div class="w-11 h-11 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-hourglass-half"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400">Menunggu Persetujuan</p>
+                                    <h3 id="kpi-pending-count" class="text-2xl font-bold text-amber-500 mt-1">0 Pending</h3>
+                                </div>
+                                <div class="w-11 h-11 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400">Pengajuan Diterima</p>
+                                    <h3 id="kpi-approved-count" class="text-2xl font-bold text-emerald-600 mt-1">0 Diterima</h3>
+                                </div>
+                                <div class="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400">Pengajuan Ditolak</p>
+                                    <h3 id="kpi-rejected-count" class="text-2xl font-bold text-rose-600 mt-1">0 Ditolak</h3>
+                                </div>
+                                <div class="w-11 h-11 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">Aktivitas Terkini</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Daftar pengajuan lembur terbaru dalam sistem.</p>
+                            </div>
+                            <button onclick="navigateTo('history')" class="text-xs font-semibold text-blue-600 hover:text-blue-700">Lihat Semua</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                        <th class="py-3 px-5">Karyawan / NPK</th>
+                                        <th class="py-3 px-5">Cabang</th>
+                                        <th class="py-3 px-5">Tanggal</th>
+                                        <th class="py-3 px-5">Jam Lembur</th>
+                                        <th class="py-3 px-5">Pekerjaan</th>
+                                        <th class="py-3 px-5 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-recent-table" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE 2: NEW REQUEST FORM -->
+                <div id="page-new-request" class="page-content hidden space-y-6 max-w-3xl mx-auto">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Input Lembur Karyawan</h1>
+                        <p class="text-xs text-slate-500 mt-0.5">Formulir Pengajuan Lembur Resmi - DSO Lampung</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 right-0 h-1.5 bg-blue-600"></div>
+
+                        <form id="overtime-form" onsubmit="handleOvertimeSubmit(event)" class="space-y-6">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 mb-3">Cabang (Kode BA) <span class="text-rose-500">*</span></label>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <input type="radio" name="form-cabang" value="D660" checked class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D660 - Ahmad Yani</span>
+                                    </label>
+                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <input type="radio" name="form-cabang" value="D661" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D661 - Soekarno Hatta</span>
+                                    </label>
+                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <input type="radio" name="form-cabang" value="D662" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D662 - Bandarjaya</span>
+                                    </label>
+                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <input type="radio" name="form-cabang" value="D663" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D663 - Kotabumi</span>
+                                    </label>
+                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <input type="radio" name="form-cabang" value="D664" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D664 - Lampung Timur</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 mb-1">NPK <span class="text-rose-500">*</span></label>
+                                <p class="text-[11px] text-slate-400 mb-2">Tidak perlu 0 di depan, Contoh: 55618</p>
+                                <input type="text" id="form-npk" required placeholder="Jawaban Anda" oninput="checkDailySubmissionLock()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 mb-2">Tanggal Lembur <span class="text-rose-500">*</span></label>
+                                <input type="date" id="form-tanggal" required onchange="checkDailySubmissionLock()" class="w-full sm:w-1/2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 mb-3">Jenis Pekerjaan <span class="text-rose-500">*</span></label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Piket Bengkel (hari libur)" checked onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Piket Bengkel (hari libur)</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Closing" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Closing</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Melanjutkan Pekerjaan Service" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Pekerjaan Service</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Melanjutkan Pekerjaan Billing Service" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Pekerjaan Billing Service</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Melanjutkan Operasional Part dan Bahan" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Operasional Part dan Bahan</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Melanjutkan Service DMS" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Service DMS</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Buka DO (Administrasi)" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Buka DO (Administrasi)</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Melanjutkan Pekerjaan Kasir" onclick="toggleCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Pekerjaan Kasir</span>
+                                    </label>
+                                    <label class="flex items-center p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="form-pekerjaan" value="Yang lain" id="radio-pekerjaan-lain" onclick="toggleCustomPekerjaan(true)" class="text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2.5 text-xs text-slate-700">Yang lain:</span>
+                                    </label>
+                                    <input type="text" id="form-pekerjaan-custom" placeholder="Sebutkan pekerjaan lain..." class="hidden ml-7 w-full sm:w-2/3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-800 mb-1">Jam Lembur (dari) <span class="text-rose-500">*</span></label>
+                                    <p class="text-[11px] text-slate-400 mb-2">Contoh : 17.00</p>
+                                    <input type="time" id="form-jam-mulai" required onchange="calculateFormDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-800 mb-1">Jam Lembur (sampai) <span class="text-rose-500">*</span></label>
+                                    <p class="text-[11px] text-slate-400 mb-2">Contoh : 20.00</p>
+                                    <input type="time" id="form-jam-selesai" required onchange="calculateFormDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                                </div>
+                            </div>
+
+                            <div id="form-duration-preview" class="p-4 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs text-blue-800">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-clock text-blue-600"></i>
+                                    <span>Estimasi Durasi Lembur:</span>
+                                </div>
+                                <span id="calculated-duration-text" class="font-bold text-blue-900">0,0 Jam</span>
+                            </div>
+
+                            <div id="lock-warning-banner" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-3">
+                                <i class="fa-solid fa-lock text-amber-600 text-lg"></i>
+                                <div>
+                                    <p class="font-bold">Pengajuan Hari Ini Terkunci</p>
+                                    <p class="text-[11px] text-amber-700 mt-0.5">Anda sudah mengirimkan 1 pengajuan lembur pada tanggal ini. Hanya diperbolehkan mengisi 1x sehari.</p>
+                                </div>
+                            </div>
+
+                            <button type="submit" id="btn-submit-request" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Kirim Pengajuan Lembur</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- PAGE 3: HISTORY PAGE -->
+                <div id="page-history" class="page-content hidden space-y-6">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Riwayat Lembur (History)</h1>
+                        <p class="text-xs text-slate-500 mt-0.5">Daftar pengajuan lembur Anda. Dapat diedit/dihapus dalam kurun waktu 24 jam.</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                        <th class="py-3.5 px-5">Cabang</th>
+                                        <th class="py-3.5 px-5">NPK</th>
+                                        <th class="py-3.5 px-5">Tanggal</th>
+                                        <th class="py-3.5 px-5">Jam Lembur</th>
+                                        <th class="py-3.5 px-5">Durasi</th>
+                                        <th class="py-3.5 px-5">Jenis Pekerjaan</th>
+                                        <th class="py-3.5 px-5 text-center">Status</th>
+                                        <th class="py-3.5 px-5 text-center">Aksi (Max 24j)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE 4: APPROVALS PAGE -->
+                <div id="page-approvals" class="page-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Persetujuan Lembur (Approvals)</h1>
+                            <p class="text-xs text-slate-500 mt-0.5">Daftar permohonan lembur karyawan yang membutuhkan verifikasi HRD / Kasie.</p>
+                        </div>
+
+                        <button onclick="handleApproveAll()" id="btn-approve-all" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-600/20 transition-all">
+                            <i class="fa-solid fa-check-double text-sm"></i>
+                            <span>Terima Semua (<span id="btn-approve-all-count">0</span>)</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                        <th class="py-3.5 px-5">Karyawan / NPK</th>
+                                        <th class="py-3.5 px-5">Cabang</th>
+                                        <th class="py-3.5 px-5">Tanggal</th>
+                                        <th class="py-3.5 px-5">Waktu Lembur</th>
+                                        <th class="py-3.5 px-5">Pekerjaan</th>
+                                        <th class="py-3.5 px-5 text-center">Keputusan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approvals-table-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE 5: REPORTS / PAYROLL PAGE -->
+                <div id="page-reports" class="page-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 id="title-reports-header" class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Laporan & Payroll Lembur</h1>
+                            <p class="text-xs text-slate-500 mt-0.5">Rekapitulasi perhitungan upah dan rincian log lembur harian.</p>
+                        </div>
+                        
+                        <div class="admin-only flex flex-wrap items-center gap-2">
+                            <select id="filter-report-cabang" onchange="fetchServerAdjustments()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                <option value="D660">D660 - Lampung Ahmad Yani</option>
+                                <option value="D661">D661 - Lampung Soekarno Hatta</option>
+                                <option value="D662">D662 - Bandarjaya</option>
+                                <option value="D663">D663 - Kotabumi</option>
+                                <option value="D664">D664 - Lampung Timur</option>
+                            </select>
+
+                            <select id="filter-report-bulan" onchange="fetchServerAdjustments()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                <option value="ALL">Semua Bulan (Rekap 1 Tahun)</option>
+                                <option value="1">Januari</option>
+                                <option value="2">Februari</option>
+                                <option value="3">Maret</option>
+                                <option value="4">April</option>
+                                <option value="5">Mei</option>
+                                <option value="6">Juni</option>
+                                <option value="7">Juli</option>
+                                <option value="8">Agustus</option>
+                                <option value="9">September</option>
+                                <option value="10">Oktober</option>
+                                <option value="11">November</option>
+                                <option value="12">Desember</option>
+                            </select>
+
+                            <select id="filter-report-tahun" onchange="fetchServerAdjustments()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- TABEL 1: Rekapitulasi Upah Lembur (Admin Only) -->
+                    <div id="section-rekapitulasi-upah" class="admin-only bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col gap-3">
+                            <div class="min-w-0">
+                                <h3 id="title-rekap-upah" class="font-bold text-slate-800 text-sm truncate">Rekapitulasi Lembur Karyawan</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Total perhitungan poin jam lembur dan estimasi nominal gaji lembur.</p>
+                            </div>
+                            
+                            <!-- TOOLBAR SCROLL HORIZONTAL DI HP -->
+                            <div class="w-full overflow-x-auto pb-1 custom-scrollbar">
+                                <div class="flex items-center gap-2 min-w-max">
+                                    <div class="admin-only bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200 text-xs font-semibold flex-shrink-0">
+                                        <button type="button" id="btn-view-asli" onclick="switchRekapViewMode('asli')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap">
+                                            <i class="fa-solid fa-table-list mr-1"></i> Data Asli
+                                        </button>
+                                        <button type="button" id="btn-view-adjust" onclick="switchRekapViewMode('adjust')" class="px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap">
+                                            <i class="fa-solid fa-sliders mr-1"></i> Hasil Adjust
+                                        </button>
+                                    </div>
+
+                                    <div class="admin-only flex items-center gap-2 flex-shrink-0">
+                                        <button type="button" onclick="exportToExcel('rekap_asli')" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-all border border-slate-200 whitespace-nowrap">
+                                            <i class="fa-solid fa-file-lines text-slate-500"></i>
+                                            <span>Export Asli</span>
+                                        </button>
+                                        <button type="button" onclick="exportToExcel('rekap_adjust')" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs transition-all shadow-sm whitespace-nowrap">
+                                            <i class="fa-solid fa-file-excel"></i>
+                                            <span>Export Adjust</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-amber-50/80 text-[11px] font-bold text-amber-900 border-b border-amber-100">
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">No</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50">Nama</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">NPK</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-right">Gaji</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">Lembur I</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">Lembur II</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">Lembur III</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">Lembur IV</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-center">Total Poin</th>
+                                        <th class="py-3 px-4 border-r border-amber-200/50 text-right">Estimasi Lembur</th>
+                                        <th class="py-3 px-4 text-center">Aksi / Adjust</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-rekapitulasi-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                                <tfoot id="table-rekapitulasi-foot" class="bg-amber-50/90 font-bold text-xs text-slate-800 border-t-2 border-amber-200"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TABEL 2: Claim Payroll (Log Detail Harian) DENGAN SWITCH ASLI VS ADJUST & EKSPOR GANDA -->
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <!-- Header Tabel & Toolbar Switch/Export -->
+                        <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col gap-3">
+                            <div class="min-w-0">
+                                <h3 id="title-claim-payroll" class="font-bold text-slate-800 text-sm truncate">Log Rincian Harian Lembur</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Rincian breakdown jam lembur I, II, III, IV per pengajuan kegiatan.</p>
+                            </div>
+
+                            <!-- TOOLBAR SCROLL HORIZONTAL DI HP -->
+                            <div class="w-full overflow-x-auto pb-1 custom-scrollbar">
+                                <div class="flex items-center gap-2 min-w-max">
+                                    <div class="admin-only bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200 text-xs font-semibold flex-shrink-0">
+                                        <button type="button" id="btn-claim-view-asli" onclick="switchClaimViewMode('asli')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap">
+                                            <i class="fa-solid fa-table-list mr-1"></i> Data Asli
+                                        </button>
+                                        <button type="button" id="btn-claim-view-adjust" onclick="switchClaimViewMode('adjust')" class="px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap">
+                                            <i class="fa-solid fa-sliders mr-1"></i> Hasil Adjust
+                                        </button>
+                                    </div>
+
+                                    <div class="admin-only flex items-center gap-2 flex-shrink-0">
+                                        <button type="button" onclick="exportToExcel('claim_asli')" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-all border border-slate-200 whitespace-nowrap">
+                                            <i class="fa-solid fa-file-lines text-slate-500"></i>
+                                            <span>Export Asli</span>
+                                        </button>
+                                        <button type="button" onclick="exportToExcel('claim_adjust')" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs transition-all shadow-sm whitespace-nowrap">
+                                            <i class="fa-solid fa-file-excel"></i>
+                                            <span>Export Adjust</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Kontainer Tabel Responsif -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr id="table-claim-header-row" class="bg-orange-50/80 text-[11px] font-bold text-orange-900 border-b border-orange-100">
+                                        <!-- Dinamis: diisi oleh renderReportsView() -->
+                                    </tr>
+                                </thead>
+                                <tbody id="table-claim-payroll-body" class="divide-y divide-slate-100 text-xs text-slate-700">
+                                    <!-- Dinamis: diisi oleh renderReportsView() -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div> <!-- PENUTUP id="page-reports" -->
+
+                    <!-- PAGE 6: DATA KARYAWAN (ADMIN ONLY) -->
+                    <div id="page-karyawan" class="page-content hidden space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Data Karyawan</h1>
+                                <p class="text-xs text-slate-500 mt-0.5">Kelola daftar master karyawan, gaji pokok, cabang, dan hak akses.</p>
+                            </div>
+                            <button onclick="openKaryawanModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md shadow-blue-500/20 transition-all">
+                                <i class="fa-solid fa-user-plus text-sm"></i>
+                                <span>Tambah Karyawan</span>
+                            </button>
+                        </div>
+
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                            <div class="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
+                                <div>
+                                    <select id="filter-karyawan-cabang" onchange="renderKaryawanTable()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                        <option value="ALL">Semua Cabang</option>
+                                        <option value="D660">D660 - Ahmad Yani</option>
+                                        <option value="D661">D661 - Soekarno Hatta</option>
+                                        <option value="D662">D662 - Bandarjaya</option>
+                                        <option value="D663">D663 - Kotabumi</option>
+                                        <option value="D664">D664 - Lampung Timur</option>
+                                    </select>
+                                </div>
+
+                                <span id="karyawan-total-badge" class="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg w-fit flex-shrink-0">Total: 0 Karyawan</span>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                            <th class="py-3.5 px-5 text-center">No</th>
+                                            <th class="py-3.5 px-5">NPK</th>
+                                            <th class="py-3.5 px-5">Nama Lengkap</th>
+                                            <th class="py-3.5 px-5">Cabang</th>
+                                            <th class="py-3.5 px-5">Jabatan</th>
+                                            <th class="py-3.5 px-5 text-right">Gaji Pokok</th>
+                                            <th class="py-3.5 px-5 text-center">Role</th>
+                                            <th class="py-3.5 px-5 text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="karyawan-table-body" class="divide-y divide-slate-100 text-xs text-slate-700">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                <!-- PAGE 7: SETTINGS PAGE -->
+                <div id="page-settings" class="page-content hidden space-y-6 max-w-3xl mx-auto">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Pengaturan Profil</h1>
+                        <p class="text-xs text-slate-500 mt-0.5">Kelola biodata akun dan informasi wilayah kerja Anda.</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+                        <form id="profile-form" onsubmit="saveProfileSettings(event)" class="space-y-5">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Nama Lengkap</label>
+                                    <input type="text" id="setting-nama" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-2">NPK Karyawan</label>
+                                    <input type="text" id="setting-npk" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-mono">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Region / Kode BA</label>
+                                    <select id="setting-cabang" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                        <option value="D660">D660 - Lampung Ahmad Yani</option>
+                                        <option value="D661">D661 - Lampung Soekarno Hatta</option>
+                                        <option value="D662">D662 - Bandarjaya</option>
+                                        <option value="D663">D663 - Kotabumi</option>
+                                        <option value="D664">D664 - Lampung Timur</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Jabatan</label>
+                                    <input type="text" id="setting-jabatan" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                </div>
+                            </div>
+
+                            <div class="pt-4 flex justify-end">
+                                <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md transition-all">
+                                    Simpan Perubahan Profile
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL FORM TAMBAH / EDIT KARYAWAN (ADMIN ONLY) -->
+    <div id="karyawan-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 relative">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                    <h3 id="modal-karyawan-title" class="font-bold text-slate-800 text-base">Tambah Karyawan Baru</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Integrasi langsung ke database Master Karyawan.</p>
+                </div>
+                <button onclick="closeKaryawanModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <form id="karyawan-form" onsubmit="handleKaryawanSubmit(event)" class="space-y-4 mt-4">
+                <input type="hidden" id="karyawan-is-edit" value="false">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">NPK <span class="text-rose-500">*</span></label>
+                        <input type="text" id="karyawan-npk" required placeholder="Contoh: 1800" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Cabang <span class="text-rose-500">*</span></label>
+                        <select id="karyawan-cabang" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500/20">
+                            <option value="D660">D660 - Ahmad Yani</option>
+                            <option value="D661">D661 - Soekarno Hatta</option>
+                            <option value="D662">D662 - Bandarjaya</option>
+                            <option value="D663">D663 - Kotabumi</option>
+                            <option value="D664">D664 - Lampung Timur</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
+                    <input type="text" id="karyawan-nama" required placeholder="Nama Lengkap Karyawan" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Jabatan <span class="text-rose-500">*</span></label>
+                        <input type="text" id="karyawan-jabatan" required placeholder="Contoh: Mekanik / SA / Kasir" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Gaji Pokok (Rp) <span class="text-rose-500">*</span></label>
+                        <input type="number" id="karyawan-gaji" required placeholder="Contoh: 5332000" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Role Akun <span class="text-rose-500">*</span></label>
+                        <select id="karyawan-role" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500/20">
+                            <option value="user">User / Karyawan</option>
+                            <option value="admin">Admin / HRD</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                        <input type="email" id="karyawan-email" placeholder="karyawan@daihatsu.astra.co.id" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeKaryawanModal()" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold">
+                        Batal
+                    </button>
+                    <button type="submit" id="btn-submit-karyawan" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md">
+                        Simpan Karyawan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ADJUST JAM & ESTIMASI LEMBUR (RESPONSIF MOBILE) -->
+    <div id="adjust-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden relative">
+            
+            <!-- Header Modal -->
+            <div class="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                <div class="pr-2">
+                    <h3 class="font-bold text-slate-800 text-sm sm:text-base">Penyesuaian (Adjust) Jam Lembur</h3>
+                    <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Atur jam lembur per tanggal kegiatan untuk simulasi payroll.</p>
+                </div>
+                <button type="button" onclick="closeAdjustModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 flex-shrink-0">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Area Konten Scrollable -->
+            <div class="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+                <input type="hidden" id="adjust-npk">
+
+                <!-- Ringkasan Karyawan -->
+                <div class="p-3 sm:p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <p class="text-slate-500">Nama: <span id="adjust-info-nama" class="font-bold text-slate-800 block sm:inline"></span></p>
+                    <p class="text-slate-500">NPK: <span id="adjust-info-npk" class="font-mono font-bold text-slate-800 block sm:inline"></span></p>
+                    <p class="text-slate-500">Gaji Pokok: <span id="adjust-info-gaji" class="font-bold text-emerald-600 block sm:inline"></span></p>
+                </div>
+
+                <!-- Tabel Input Harian (Diberi overflow-x-auto agar tidak kepotong di HP) -->
+                <div>
+                    <h4 class="text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Rincian Jam Lembur Harian</h4>
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden overflow-x-auto">
+                        <table class="w-full min-w-[420px] text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-500 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2.5 px-3">Tanggal & Pekerjaan</th>
+                                    <th class="py-2.5 px-3 text-center">Jam Mulai</th>
+                                    <th class="py-2.5 px-3 text-center">Jam Selesai</th>
+                                    <th class="py-2.5 px-3 text-center">Durasi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adjust-log-rows-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Ringkasan Perhitungan -->
+                <div class="p-3 sm:p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2 text-xs">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-600 pb-2 border-b border-amber-200/60">
+                        <div>Total Jam: <b id="adjust-summary-total-jam" class="text-slate-800 block text-xs sm:text-sm">0,00</b></div>
+                        <div>Lembur I (1.5x): <b id="adjust-summary-l1" class="text-slate-800 block text-xs sm:text-sm">0,00</b></div>
+                        <div>Lembur II (2.7x): <b id="adjust-summary-l2" class="text-slate-800 block text-xs sm:text-sm">0,00</b></div>
+                        <div>Total Poin: <b id="adjust-summary-poin" class="text-slate-900 block text-xs sm:text-sm font-extrabold">0,00</b></div>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <span class="text-slate-500 text-[10px] sm:text-[11px] block">Estimasi Upah Lembur:</span>
+                            <span id="adjust-summary-estimasi" class="text-base sm:text-lg font-bold text-emerald-700">Rp 0</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-500 text-[10px] sm:text-[11px] block">Persentase Budget:</span>
+                            <span id="adjust-summary-persen" class="text-xs sm:text-sm font-bold text-blue-600">100%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Tombol Aksi (Responsif Flex-Col di HP) -->
+            <div class="p-3 sm:p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 flex-shrink-0">
+                <button type="button" onclick="resetAdjustment()" class="text-xs text-rose-600 hover:underline font-semibold flex items-center justify-center gap-1.5 py-1 sm:py-0 order-2 sm:order-1">
+                    <i class="fa-solid fa-rotate-left"></i> Reset ke Jam Asli
+                </button>
+                <div class="flex items-center gap-2 order-1 sm:order-2">
+                    <button type="button" onclick="closeAdjustModal()" class="flex-1 sm:flex-none px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold text-center">
+                        Batal
+                    </button>
+                    <button type="button" onclick="saveAdjustment()" class="flex-1 sm:flex-none px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md text-center">
+                        Simpan Adjust
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT HISTORY MODAL -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-6 sm:p-8 relative">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">Edit Pengajuan Lembur</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Perbarui rincian pengajuan lembur resmi DSO Lampung.</p>
+                </div>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition-all">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+            
+            <form id="edit-form" onsubmit="saveEditRequest(event)" class="space-y-5 mt-5">
+                <input type="hidden" id="edit-id">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-2">Cabang (Kode BA) <span class="text-rose-500">*</span></label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        <label class="flex items-center p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/50 transition-all">
+                            <input type="radio" name="edit-cabang" value="D660" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-xs font-medium text-slate-700">D660 - Ahmad Yani</span>
+                        </label>
+                        <label class="flex items-center p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/50 transition-all">
+                            <input type="radio" name="edit-cabang" value="D661" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-xs font-medium text-slate-700">D661 - Soekarno Hatta</span>
+                        </label>
+                        <label class="flex items-center p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/50 transition-all">
+                            <input type="radio" name="edit-cabang" value="D662" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-xs font-medium text-slate-700">D662 - Bandarjaya</span>
+                        </label>
+                        <label class="flex items-center p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/50 transition-all">
+                            <input type="radio" name="edit-cabang" value="D663" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-xs font-medium text-slate-700">D663 - Kotabumi</span>
+                        </label>
+                        <label class="flex items-center p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/50 transition-all">
+                            <input type="radio" name="edit-cabang" value="D664" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-xs font-medium text-slate-700">D664 - Lampung Timur</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">NPK <span class="text-rose-500">*</span></label>
+                    <input type="text" id="edit-npk" required placeholder="Contoh: 55618" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Tanggal Lembur <span class="text-rose-500">*</span></label>
+                    <input type="date" id="edit-tanggal" required class="w-full sm:w-1/2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-2">Jenis Pekerjaan <span class="text-rose-500">*</span></label>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Piket Bengkel (hari libur)" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Piket Bengkel (hari libur)</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Closing" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Closing</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Melanjutkan Pekerjaan Service" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Pekerjaan Service</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Melanjutkan Pekerjaan Billing Service" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Pekerjaan Billing Service</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Melanjutkan Operasional Part dan Bahan" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Operasional Part dan Bahan</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Melanjutkan Service DMS" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Service DMS</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Buka DO (Administrasi)" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Buka DO (Administrasi)</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Melanjutkan Pekerjaan Kasir" onclick="toggleEditCustomPekerjaan(false)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Melanjutkan Pekerjaan Kasir</span>
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                            <input type="radio" name="edit-pekerjaan" value="Yang lain" id="radio-edit-pekerjaan-lain" onclick="toggleEditCustomPekerjaan(true)" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2.5 text-xs text-slate-700">Yang lain:</span>
+                        </label>
+                        <input type="text" id="edit-pekerjaan-custom" placeholder="Sebutkan pekerjaan lain..." class="hidden ml-7 w-full sm:w-2/3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-1">Jam Mulai <span class="text-rose-500">*</span></label>
+                        <input type="time" id="edit-jam-mulai" required onchange="calculateEditDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-1">Jam Selesai <span class="text-rose-500">*</span></label>
+                        <input type="time" id="edit-jam-selesai" required onchange="calculateEditDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                <div class="p-3.5 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs text-blue-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-blue-600"></i>
+                        <span>Estimasi Durasi Lembur:</span>
+                    </div>
+                    <span id="edit-duration-text" class="font-bold text-blue-900">0,0 Jam</span>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold transition-all">Batal</button>
+                    <button type="submit" id="btn-save-edit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-500/20 transition-all">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CUSTOM CONFIRMATION MODAL -->
+    <div id="custom-confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 hidden transition-opacity">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200/80 max-w-sm w-full p-6 text-center transform transition-all scale-95 opacity-0 duration-200" id="custom-confirm-box">
+            <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner" id="confirm-icon-wrapper">
+                <i class="fa-solid fa-check-double" id="confirm-icon"></i>
+            </div>
+            
+            <h3 class="text-base font-bold text-slate-800 tracking-tight" id="confirm-modal-title">Konfirmasi Persetujuan</h3>
+            <p class="text-xs text-slate-500 mt-1.5 leading-relaxed" id="confirm-modal-message">
+                Apakah Anda yakin ingin menyetujui seluruh pengajuan lembur ini?
+            </p>
+
+            <div class="mt-6 flex items-center justify-center gap-2.5">
+                <button type="button" onclick="closeCustomConfirm(false)" class="w-1/2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
+                    Batal
+                </button>
+                <button type="button" onclick="closeCustomConfirm(true)" id="confirm-modal-ok-btn" class="w-1/2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-emerald-600/20 transition-all">
+                    Ya, Lanjutkan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2"></div>
+
+    <script>
+        // GLOBAL DATA STATE
+        let currentUser = null;
+        let currentUserRole = 'user';
+        let activePage = 'dashboard';
+        let overtimeRequests = [];
+        let karyawanList = [];
+        let notifications = [];
+        let confirmResolveCallback = null;
+        
+        let adjustmentsMap = {};
+        let currentAdjustTarget = null;
+        let rekapViewMode = 'adjust';
+        let claimViewMode = 'adjust';
+
+        // ==========================================
+        // 1. INISIALISASI SESI
+        // ==========================================
+        window.onload = function () {
+            initRealtimeFilterDates();
+
+            // Isi otomatis kredensial jika sebelumnya dicentang 'Ingat Saya'
+            const savedCreds = localStorage.getItem('overtime_saved_credentials');
+            if (savedCreds) {
+                try {
+                    const { username, password } = JSON.parse(savedCreds);
+                    const uInput = document.getElementById('login-username');
+                    const pInput = document.getElementById('login-password');
+                    const remBox = document.getElementById('login-remember');
+                    
+                    if (uInput) uInput.value = username || '';
+                    if (pInput) pInput.value = password || '';
+                    if (remBox) remBox.checked = true;
+                } catch (e) {
+                    localStorage.removeItem('overtime_saved_credentials');
+                }
+            }
+
+            const savedUser = localStorage.getItem('overtime_user_session');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    currentUserRole = (currentUser.role || 'user').toString().trim().toLowerCase();
+                    
+                    document.getElementById('login-screen').classList.add('hidden');
+                    applyRolePermissions();
+                    updateProfileHeader();
+                    loadAllDataFromServer();
+                } catch (e) {
+                    localStorage.removeItem('overtime_user_session');
+                    document.getElementById('login-screen').classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+            }
+        };
+
+        // ==========================================
+        // 2. SISTEM LOGIN & LOGOUT
+        // ==========================================
+        function handleLogin(e) {
+            e.preventDefault();
+            
+            const usernameInput = document.getElementById('login-username').value.trim();
+            const passwordInput = document.getElementById('login-password').value.trim();
+            const errorBox = document.getElementById('login-error');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+
+            if (errorBox) errorBox.classList.add('hidden');
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memeriksa Database...';
+            }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Masuk ke Sistem';
+                        }
+
+                        if (response.success) {
+                            currentUser = response.user;
+                            currentUserRole = (response.role || 'user').toString().trim().toLowerCase();
+
+                            localStorage.setItem('overtime_user_session', JSON.stringify(currentUser));
+
+                            // Simpan otomatis kredensial jika centang aktif
+                            const rememberMe = document.getElementById('login-remember');
+                            if (rememberMe && rememberMe.checked) {
+                                localStorage.setItem('overtime_saved_credentials', JSON.stringify({
+                                    username: usernameInput,
+                                    password: passwordInput
+                                }));
+                            } else {
+                                localStorage.removeItem('overtime_saved_credentials');
+                            }
+
+                            applyRolePermissions();
+                            updateProfileHeader();
+                            
+                            document.getElementById('login-screen').classList.add('hidden');
+                            loadAllDataFromServer();
+                            showToast(`Selamat datang, ${currentUser.nama}!`, 'success');
+
+                        } else {
+                            if (errorBox) {
+                                errorBox.innerHTML = `<i class="fa-solid fa-circle-exclamation text-sm"></i> <span>${response.message}</span>`;
+                                errorBox.classList.remove('hidden');
+                            } else {
+                                alert(response.message);
+                            }
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Masuk ke Sistem';
+                        }
+                        alert("Gagal terhubung ke Database: " + error.message);
+                    })
+                    .authLogin(usernameInput, passwordInput);
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            currentUserRole = 'user';
+            
+            localStorage.removeItem('overtime_user_session');
+
+            document.getElementById('login-screen').classList.remove('hidden');
+
+            // Jika tidak memilih ingat saya, baru bersihkan input
+            const savedCreds = localStorage.getItem('overtime_saved_credentials');
+            if (!savedCreds) {
+                document.getElementById('login-username').value = '';
+                document.getElementById('login-password').value = '';
+            }
+
+            closeSidebar();
+            showToast('Anda telah keluar dari sistem.', 'info');
+        }
+
+        function applyRolePermissions() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            const role = (currentUser && currentUser.role) ? currentUser.role.toString().trim().toLowerCase() : 'user';
+            
+            if (role === 'admin') {
+                adminElements.forEach(el => el.classList.remove('hidden'));
+                const navReportsText = document.getElementById('text-nav-reports');
+                if (navReportsText) navReportsText.innerText = 'Reports / Payroll';
+            } else {
+                adminElements.forEach(el => el.classList.add('hidden'));
+                const navReportsText = document.getElementById('text-nav-reports');
+                if (navReportsText) navReportsText.innerText = 'Log Lembur Harian';
+
+                // Pastikan mode akun karyawan otomatis melihat data asli
+                rekapViewMode = 'asli';
+                claimViewMode = 'asli';
+            }
+        }
+
+        function updateProfileHeader() {
+            if (!currentUser) return;
+            const initials = currentUser.nama ? currentUser.nama.split(' ').map(n => n[0]).join('').substring(0, 2) : 'US';
+            
+            // Ambil jabatan langsung dari database master karyawan
+            const jabatanLabel = currentUser.jabatan || 'Staff';
+
+            document.getElementById('user-avatar').innerText = initials;
+            document.getElementById('header-user-name').innerText = currentUser.nama;
+            // Menampilkan: [Jabatan] - [Kode Cabang]
+            document.getElementById('header-user-role').innerText = `${jabatanLabel} - ${currentUser.cabang}`;
+            
+            const sNama = document.getElementById('setting-nama');
+            const sNpk = document.getElementById('setting-npk');
+            const sCabang = document.getElementById('setting-cabang');
+            const sJabatan = document.getElementById('setting-jabatan');
+            const fNpk = document.getElementById('form-npk');
+
+            if (sNama) sNama.value = currentUser.nama;
+            if (sNpk) sNpk.value = currentUser.npk;
+            if (sCabang) sCabang.value = currentUser.cabang;
+            if (sJabatan) sJabatan.value = currentUser.jabatan;
+            if (fNpk && currentUser.role !== 'admin') {
+                fNpk.value = currentUser.npk;
+            }
+        }
+
+        function renderAllViews() {
+            renderDashboardView();
+            renderHistoryView();
+            renderApprovalsView();
+            renderReportsView();
+            if (currentUser && currentUser.role === 'admin') {
+                fetchKaryawanList();
+            }
+        }
+
+        // ==========================================
+        // SINKRONISASI DATA UTAMA DARI SERVER
+        // ==========================================
+        function loadAllDataFromServer() {
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (res && res.success) {
+                            overtimeRequests = res.data || [];
+                            renderAllViews();
+                            generateDynamicNotifications();
+                            // Tambahkan baris ini agar data master karyawan selalu ditarik
+                            fetchKaryawanList();
+                        } else {
+                            showToast("Gagal memuat data: " + (res ? res.message : "Data kosong"), "error");
+                        }
+                    })
+                    .withFailureHandler(function(err) {
+                        showToast("Koneksi server gagal: " + err.message, "error");
+                    })
+                    .getAllOvertimeData();
+            }
+        }
+
+        // ==========================================
+        // 3. RENDER DASHBOARD VIEW
+        // ==========================================
+        function renderDashboardView() {
+            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
+            
+            let dashboardData = overtimeRequests;
+            if (!isAdmin && currentUser && currentUser.npk) {
+                dashboardData = overtimeRequests.filter(r => (r.npk || '').toString().trim() === currentUser.npk.toString().trim());
+            }
+
+            const isApproved = r => {
+                const s = (r.status || '').toString().toLowerCase();
+                return s === 'diterima' || s === 'approved';
+            };
+            const isPending = r => (r.status || '').toString().toLowerCase() === 'pending';
+            const isRejected = r => {
+                const s = (r.status || '').toString().toLowerCase();
+                return s === 'ditolak' || s === 'rejected';
+            };
+
+            const totalHours = dashboardData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
+            const pendingCount = dashboardData.filter(isPending).length;
+            const approvedCount = dashboardData.filter(isApproved).length;
+            const rejectedCount = dashboardData.filter(isRejected).length;
+
+            const elTotalHours = document.getElementById('kpi-total-hours');
+            const elPending = document.getElementById('kpi-pending-count');
+            const elApproved = document.getElementById('kpi-approved-count');
+            const elRejected = document.getElementById('kpi-rejected-count');
+
+            if (elTotalHours) elTotalHours.innerText = `${totalHours.toFixed(1).replace('.', ',')} Jam`;
+            if (elPending) elPending.innerText = `${pendingCount} Pending`;
+            if (elApproved) elApproved.innerText = `${approvedCount} Diterima`;
+            if (elRejected) elRejected.innerText = `${rejectedCount} Ditolak`;
+
+            const pendingAdmin = overtimeRequests.filter(isPending).length;
+            const badgePending = document.getElementById('badge-pending-count');
+            if (badgePending) badgePending.innerText = pendingAdmin;
+
+            const tbody = document.getElementById('dashboard-recent-table');
+            if (tbody) {
+                tbody.innerHTML = dashboardData.slice(0, 5).map(r => `
+                    <tr class="hover:bg-slate-50/80 transition-all">
+                        <td class="py-3 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
+                        <td class="py-3 px-5">${r.cabang}</td>
+                        <td class="py-3 px-5">${r.tanggal}</td>
+                        <td class="py-3 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
+                        <td class="py-3 px-5">${r.pekerjaan}</td>
+                        <td class="py-3 px-5 text-center">${getStatusBadge(r.status)}</td>
+                    </tr>
+                `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada pengajuan lembur yang tercatat.</td></tr>`;
+            }
+        }
+
+        // ==========================================
+        // 4. RENDER HISTORY VIEW (RIWAYAT PRIBADI)
+        // ==========================================
+        function renderHistoryView() {
+            const tbody = document.getElementById('history-table-body');
+            if (!tbody) return;
+
+            const curNpk = currentUser && currentUser.npk ? currentUser.npk.toString().trim() : "";
+            const curNama = currentUser && currentUser.nama ? currentUser.nama.toString().trim().toLowerCase() : "";
+
+            let userRequests = overtimeRequests.filter(r => {
+                const rNpk = (r.npk || "").toString().trim();
+                const rNama = (r.nama || "").toString().trim().toLowerCase();
+                return (curNpk && rNpk === curNpk) || (curNama && rNama === curNama);
+            });
+
+            const now = Date.now();
+
+            tbody.innerHTML = userRequests.map(r => {
+                const createdTime = r.timestamp || now;
+                const diffHours = (now - createdTime) / (1000 * 60 * 60);
+                const isPending = (r.status || '').toString().toLowerCase() === 'pending';
+                const canEdit = diffHours < 24 && isPending;
+
+                const actionBtns = canEdit ? `
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="openEditModal('${r.id}')" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all" title="Edit Pengajuan">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteRequest('${r.id}')" class="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all" title="Hapus Pengajuan">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                ` : `
+                    <span class="text-[10px] text-slate-400 font-mono inline-flex items-center gap-1"><i class="fa-solid fa-lock"></i> Terkunci</span>
+                `;
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-all">
+                        <td class="py-3.5 px-5 font-semibold">${r.cabang}</td>
+                        <td class="py-3.5 px-5 font-mono">${r.npk}</td>
+                        <td class="py-3.5 px-5">${r.tanggal}</td>
+                        <td class="py-3.5 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai}</td>
+                        <td class="py-3.5 px-5 font-bold">${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')} Jam</td>
+                        <td class="py-3.5 px-5">${r.pekerjaan}</td>
+                        <td class="py-3.5 px-5 text-center">${getStatusBadge(r.status)}</td>
+                        <td class="py-3.5 px-5 text-center">${actionBtns}</td>
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="8" class="text-center py-6 text-slate-400">Belum ada riwayat pengajuan lembur pribadi untuk akun ini (${currentUser ? currentUser.nama : ''}).</td></tr>`;
+        }
+
+        setInterval(function() {
+            if (document.getElementById('login-screen').classList.contains('hidden')) {
+                loadAllDataFromServer();
+            }
+        }, 45000);
+
+        function generateDynamicNotifications() {
+            notifications = [];
+            if (!currentUser) return;
+            
+            if (currentUser.role === 'admin') {
+                const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
+                pendingList.forEach(item => {
+                    notifications.push({
+                        id: item.id,
+                        title: 'Pengajuan Lembur Masuk',
+                        message: `${item.nama} (${item.npk}) mengajukan lembur pada ${item.tanggal}.`,
+                        time: 'Menunggu Persetujuan',
+                        read: false
+                    });
+                });
+            } else {
+                const curNpk = currentUser.npk ? currentUser.npk.toString().trim() : '';
+                const myResponses = overtimeRequests.filter(r => 
+                    (r.npk || '').toString().trim() === curNpk && (r.status === 'Approved' || r.status === 'Rejected' || r.status === 'Diterima' || r.status === 'Ditolak')
+                );
+                myResponses.forEach(item => {
+                    let titleText = 'Lembur Disetujui';
+                    if (item.status === 'Rejected' || item.status === 'Ditolak') titleText = 'Lembur Ditolak';
+
+                    notifications.push({
+                        id: item.id,
+                        title: titleText,
+                        message: `Pengajuan tanggal ${item.tanggal} (${item.durasiHours} jam) telah di-${item.status.toLowerCase()} oleh Admin.`,
+                        time: item.status,
+                        read: false
+                    });
+                });
+            }
+            updateNotifBadge();
+        }
+
+        function populateYearFilter() {
+            const tahunSelect = document.getElementById('filter-report-tahun');
+            if (!tahunSelect) return;
+
+            const currentYear = new Date().getFullYear();
+            const startYear = currentYear - 3;
+            const endYear = currentYear + 1;
+
+            tahunSelect.innerHTML = '';
+
+            for (let y = endYear; y >= startYear; y--) {
+                const opt = document.createElement('option');
+                opt.value = y.toString();
+                opt.innerText = y.toString();
+                if (y === currentYear) opt.selected = true;
+                tahunSelect.appendChild(opt);
+            }
+        }
+
+        function initRealtimeFilterDates() {
+            const now = new Date();
+            const currentMonth = (now.getMonth() + 1).toString();
+
+            const bulanSelect = document.getElementById('filter-report-bulan');
+            if (bulanSelect) {
+                bulanSelect.value = currentMonth;
+            }
+
+            populateYearFilter();
+        }
+
+        function navigateTo(pageId) {
+            activePage = pageId;
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            
+            const target = document.getElementById(`page-${pageId}`);
+            if (target) target.classList.remove('hidden');
+
+            closeSidebar();
+
+            if (pageId === 'dashboard') renderDashboardView();
+            else if (pageId === 'history') renderHistoryView();
+            else if (pageId === 'approvals') renderApprovalsView();
+            else if (pageId === 'reports') fetchServerAdjustments();
+            else if (pageId === 'karyawan') fetchKaryawanList();
+            else if (pageId === 'new-request') checkDailySubmissionLock();
+        }
+
+        function toggleSubmenu(id) {
+            const el = document.getElementById(id);
+            const arrow = document.getElementById('my-overtime-arrow');
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            } else {
+                el.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const isDesktop = window.innerWidth >= 1024;
+
+            if (isDesktop) {
+                // Toggle sembunyikan sidebar di layar desktop
+                if (sidebar.classList.contains('lg:hidden')) {
+                    sidebar.classList.remove('lg:hidden');
+                } else {
+                    sidebar.classList.add('lg:hidden');
+                }
+            } else {
+                // Toggle sidebar di layar HP/Tablet
+                if (sidebar.classList.contains('-translate-x-full')) {
+                    sidebar.classList.remove('-translate-x-full');
+                    backdrop.classList.remove('hidden');
+                } else {
+                    closeSidebar();
+                }
+            }
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.add('hidden');
+        }
+
+        function handleGlobalSearch(query) {
+            const q = (query || '').toLowerCase().trim();
+
+            // 1. Jika sedang di menu Data Karyawan
+            if (activePage === 'karyawan') {
+                renderKaryawanTable();
+                return;
+            }
+
+            // 2. Jika sedang di menu History
+            if (activePage === 'history') {
+                const rows = document.querySelectorAll('#history-table-body tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+                return;
+            }
+
+            // 3. Jika sedang di menu Approvals
+            if (activePage === 'approvals') {
+                const rows = document.querySelectorAll('#approvals-table-body tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+                return;
+            }
+
+            // 4. Jika sedang di menu Reports / Payroll
+            if (activePage === 'reports') {
+                const rowsRekap = document.querySelectorAll('#table-rekapitulasi-body tr');
+                rowsRekap.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+
+                const rowsClaim = document.querySelectorAll('#table-claim-payroll-body tr');
+                rowsClaim.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+                return;
+            }
+
+            // 5. Jika sedang di menu Dashboard
+            if (activePage === 'dashboard') {
+                const rows = document.querySelectorAll('#dashboard-recent-table tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+            }
+        }
+
+        // Efek header transparan + blur dinamis saat konten di-scroll
+        function handleHeaderScroll() {
+            const scrollArea = document.getElementById('main-scroll-area');
+            const header = document.getElementById('main-header');
+            if (!scrollArea || !header) return;
+
+            if (scrollArea.scrollTop > 15) {
+                // Ketika tabel di-scroll ke bawah: transparan (opacity 70%) + blur kuat + bayangan halus
+                header.classList.remove('bg-white/80');
+                header.classList.add('bg-white/70', 'shadow-md', 'backdrop-blur-xl');
+            } else {
+                // Ketika di posisi paling atas: kembali ke tampilan awal
+                header.classList.remove('bg-white/70', 'shadow-md', 'backdrop-blur-xl');
+                header.classList.add('bg-white/80');
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('login-password');
+            const eyeIcon = document.getElementById('toggle-password-icon');
+            
+            if (!passwordInput || !eyeIcon) return;
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function getStatusBadge(status) {
+            const s = (status || '').toString().toLowerCase();
+            if (s === 'approved' || s === 'diterima') {
+                return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-circle-check"></i> Diterima</span>`;
+            }
+            if (s === 'rejected' || s === 'ditolak') {
+                return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-circle-xmark"></i> Ditolak</span>`;
+            }
+            return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-clock"></i> Pending</span>`;
+        }
+
+        function toggleCustomPekerjaan(show) {
+            const input = document.getElementById('form-pekerjaan-custom');
+            if (show) input.classList.remove('hidden');
+            else input.classList.add('hidden');
+        }
+
+        function calculateFormDuration() {
+            const jm = document.getElementById('form-jam-mulai').value;
+            const js = document.getElementById('form-jam-selesai').value;
+            if (jm && js) {
+                const start = new Date(`2000-01-01T${jm}:00`);
+                let end = new Date(`2000-01-01T${js}:00`);
+                if (end < start) end = new Date(`2000-01-02T${js}:00`);
+                const diffHours = (end - start) / (1000 * 60 * 60);
+                document.getElementById('calculated-duration-text').innerText = `${diffHours.toFixed(1).replace('.', ',')} Jam`;
+                return diffHours;
+            }
+            return 0;
+        }
+
+        function checkDailySubmissionLock() {
+            const tanggal = document.getElementById('form-tanggal').value;
+            const inputNPK = document.getElementById('form-npk').value.trim();
+            const btn = document.getElementById('btn-submit-request');
+            const warning = document.getElementById('lock-warning-banner');
+
+            if (!btn) return;
+
+            if (!tanggal || !inputNPK) {
+                btn.disabled = false;
+                btn.className = "w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2";
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>`;
+                if (warning) warning.classList.add('hidden');
+                return;
+            }
+
+            const existing = overtimeRequests.find(r => (r.npk || '').toString().trim() === inputNPK && r.tanggal === tanggal);
+
+            if (existing) {
+                btn.disabled = true;
+                btn.className = "w-full py-3.5 bg-slate-300 text-slate-500 font-semibold rounded-xl text-xs flex items-center justify-center gap-2 cursor-not-allowed";
+                btn.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Pengajuan NPK Ini Terkunci</span>`;
+                if (warning) {
+                    warning.querySelector('p.text-\\[11px\\]').innerText = `NPK ${inputNPK} sudah memiliki 1 pengajuan lembur pada tanggal ini. Setiap karyawan hanya dapat diisi 1x sehari.`;
+                    warning.classList.remove('hidden');
+                }
+            } else {
+                btn.disabled = false;
+                btn.className = "w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2";
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>`;
+                if (warning) warning.classList.add('hidden');
+            }
+        }
+
+        function handleOvertimeSubmit(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('btn-submit-request');
+            const selectedCabang = document.querySelector('input[name="form-cabang"]:checked');
+            const selectedPekerjaan = document.querySelector('input[name="form-pekerjaan"]:checked');
+            
+            if (!selectedCabang || !selectedPekerjaan) {
+                alert("Harap pilih Cabang dan Jenis Pekerjaan!");
+                return;
+            }
+
+            let pekerjaanVal = selectedPekerjaan.value;
+            if (pekerjaanVal === "Yang lain") {
+                const customInput = document.getElementById('form-pekerjaan-custom');
+                pekerjaanVal = customInput && customInput.value.trim() ? customInput.value.trim() : "Pekerjaan Lainnya";
+            }
+
+            const tanggalVal = document.getElementById('form-tanggal').value;
+            const jamMulaiVal = document.getElementById('form-jam-mulai').value;
+            const jamSelesaiVal = document.getElementById('form-jam-selesai').value;
+            const npkVal = document.getElementById('form-npk').value.trim();
+            const durasiVal = calculateFormDuration() || 0;
+
+            if (!tanggalVal || !jamMulaiVal || !jamSelesaiVal || !npkVal) {
+                alert("Harap lengkapi semua data formulir lembur!");
+                return;
+            }
+
+            const payload = {
+                cabang: selectedCabang.value,
+                npk: npkVal,
+                tanggal: tanggalVal,
+                jamMulai: jamMulaiVal,
+                jamSelesai: jamSelesaiVal,
+                durasiHours: durasiVal,
+                pekerjaan: pekerjaanVal
+            };
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim Pengajuan...';
+            }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
+                        }
+                        
+                        if (res.success) {
+                            showToast(res.message, "success");
+                            document.getElementById('overtime-form').reset();
+                            
+                            if (currentUser && currentUser.role !== 'admin') {
+                                document.getElementById('form-npk').value = currentUser.npk;
+                            } else {
+                                document.getElementById('form-npk').value = '';
+                            }
+                            
+                            checkDailySubmissionLock();
+                            loadAllDataFromServer();
+                            navigateTo('history');
+                        } else {
+                            alert(res.message);
+                        }
+                    })
+                    .withFailureHandler(function(err) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
+                        }
+                        alert("Gagal mengirim ke Spreadsheet: " + err.message);
+                    })
+                    .submitOvertimeRequest(payload);
+            }
+        }
+
+        function renderApprovalsView() {
+            const tbody = document.getElementById('approvals-table-body');
+            const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
+
+            const btnApproveAll = document.getElementById('btn-approve-all');
+            const countSpan = document.getElementById('btn-approve-all-count');
+            if (countSpan) countSpan.innerText = pendingList.length;
+
+            if (btnApproveAll) {
+                if (pendingList.length === 0) {
+                    btnApproveAll.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                } else {
+                    btnApproveAll.classList.remove('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                }
+            }
+
+            tbody.innerHTML = pendingList.map(r => `
+                <tr class="hover:bg-slate-50/80 transition-all">
+                    <td class="py-3.5 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
+                    <td class="py-3.5 px-5">${r.cabang}</td>
+                    <td class="py-3.5 px-5">${r.tanggal}</td>
+                    <td class="py-3.5 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
+                    <td class="py-3.5 px-5">${r.pekerjaan}</td>
+                    <td class="py-3.5 px-5 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="handleApproval('${r.id}', 'Diterima')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5" title="Terima Pengajuan">
+                                <i class="fa-solid fa-check"></i>
+                                <span>Terima</span>
+                            </button>
+                            <button onclick="handleApproval('${r.id}', 'Ditolak')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5" title="Tolak Pengajuan">
+                                <i class="fa-solid fa-xmark"></i>
+                                <span>Tolak</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada pengajuan yang membutuhkan keputusan.</td></tr>`;
+        }
+
+        function handleApproval(id, status) {
+            const targetReq = overtimeRequests.find(r => r.id === id);
+            const isAccepted = (status === 'Diterima' || status === 'Approved');
+            const newStatus = isAccepted ? 'Diterima' : 'Ditolak';
+            const toastMsg = isAccepted ? 'Pengajuan lembur berhasil diterima!' : 'Pengajuan lembur berhasil ditolak!';
+            const toastType = isAccepted ? 'success' : 'error';
+
+            if (targetReq) {
+                targetReq.status = newStatus;
+                renderAllViews();
+                showToast(toastMsg, toastType);
+            }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withFailureHandler(function(err) {
+                        alert("Gagal sinkronisasi ke database: " + err.message);
+                        loadAllDataFromServer();
+                    })
+                    .updateOvertimeStatus(id, newStatus);
+            }
+        }
+
+        async function handleApproveAll() {
+            const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
+            if (pendingList.length === 0) {
+                showToast("Tidak ada antrean pengajuan yang berstatus Pending.", "info");
+                return;
+            }
+
+            const total = pendingList.length;
+
+            const confirmed = await showCustomConfirm({
+                title: "Terima Semua Pengajuan?",
+                message: `Apakah Anda yakin ingin <b>Menerima Seluruh (${total})</b> permohonan lembur yang berstatus Pending?`,
+                confirmText: "Ya, Terima Semua",
+                type: "success"
+            });
+
+            if (!confirmed) return;
+
+            const pendingIds = pendingList.map(r => r.id);
+
+            overtimeRequests.forEach(r => {
+                if ((r.status || '').toString().toLowerCase() === 'pending') {
+                    r.status = 'Diterima';
+                }
+            });
+            renderAllViews();
+            showToast(`${total} pengajuan lembur berhasil diterima!`, 'success');
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withFailureHandler(function(err) {
+                        alert("Gagal memproses update di spreadsheet: " + err.message);
+                        loadAllDataFromServer();
+                    })
+                    .approveAllPendingOvertime(pendingIds);
+            }
+        }
+
+        function toggleEditCustomPekerjaan(show) {
+            const customInput = document.getElementById('edit-pekerjaan-custom');
+            if (show) customInput.classList.remove('hidden');
+            else customInput.classList.add('hidden');
+        }
+
+        function calculateEditDuration() {
+            const jm = document.getElementById('edit-jam-mulai').value;
+            const js = document.getElementById('edit-jam-selesai').value;
+            if (jm && js) {
+                const start = new Date(`2000-01-01T${jm}:00`);
+                let end = new Date(`2000-01-01T${js}:00`);
+                if (end < start) end = new Date(`2000-01-02T${js}:00`);
+                const diffHours = (end - start) / (1000 * 60 * 60);
+                document.getElementById('edit-duration-text').innerText = `${diffHours.toFixed(1).replace('.', ',')} Jam`;
+                return diffHours;
+            }
+            return 0;
+        }
+
+        function openEditModal(id) {
+            const req = overtimeRequests.find(r => r.id === id);
+            if (!req) return;
+
+            document.getElementById('edit-id').value = req.id;
+            document.getElementById('edit-npk').value = req.npk;
+            document.getElementById('edit-tanggal').value = req.tanggal;
+            document.getElementById('edit-jam-mulai').value = req.jamMulai;
+            document.getElementById('edit-jam-selesai').value = req.jamSelesai;
+
+            const cabangRadio = document.querySelector(`input[name="edit-cabang"][value="${req.cabang}"]`);
+            if (cabangRadio) cabangRadio.checked = true;
+
+            const standardJobs = [
+                "Piket Bengkel (hari libur)",
+                "Closing",
+                "Melanjutkan Pekerjaan Service",
+                "Melanjutkan Pekerjaan Billing Service",
+                "Melanjutkan Operasional Part dan Bahan",
+                "Melanjutkan Service DMS",
+                "Buka DO (Administrasi)",
+                "Melanjutkan Pekerjaan Kasir"
+            ];
+
+            const customInput = document.getElementById('edit-pekerjaan-custom');
+            if (standardJobs.includes(req.pekerjaan)) {
+                const jobRadio = document.querySelector(`input[name="edit-pekerjaan"][value="${req.pekerjaan}"]`);
+                if (jobRadio) jobRadio.checked = true;
+                toggleEditCustomPekerjaan(false);
+            } else {
+                const otherRadio = document.getElementById('radio-edit-pekerjaan-lain');
+                if (otherRadio) otherRadio.checked = true;
+                toggleEditCustomPekerjaan(true);
+                customInput.value = req.pekerjaan;
+            }
+
+            calculateEditDuration();
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function saveEditRequest(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('btn-save-edit');
+            const id = document.getElementById('edit-id').value;
+            const npkVal = document.getElementById('edit-npk').value.trim();
+            const tanggalVal = document.getElementById('edit-tanggal').value;
+            const jamMulaiVal = document.getElementById('edit-jam-mulai').value;
+            const jamSelesaiVal = document.getElementById('edit-jam-selesai').value;
+            const selectedCabang = document.querySelector('input[name="edit-cabang"]:checked');
+            const selectedPekerjaan = document.querySelector('input[name="edit-pekerjaan"]:checked');
+
+            if (!selectedCabang || !selectedPekerjaan || !npkVal || !tanggalVal || !jamMulaiVal || !jamSelesaiVal) {
+                alert("Harap lengkapi semua kolom edit lembur!");
+                return;
+            }
+
+            let pekerjaanVal = selectedPekerjaan.value;
+            if (pekerjaanVal === "Yang lain") {
+                const customInput = document.getElementById('edit-pekerjaan-custom');
+                pekerjaanVal = customInput && customInput.value.trim() ? customInput.value.trim() : "Pekerjaan Lainnya";
+            }
+
+            const durasiHours = calculateEditDuration() || 0;
+
+            const payload = {
+                id: id,
+                cabang: selectedCabang.value,
+                npk: npkVal,
+                tanggal: tanggalVal,
+                jamMulai: jamMulaiVal,
+                jamSelesai: jamSelesaiVal,
+                durasiHours: durasiHours,
+                pekerjaan: pekerjaanVal
+            };
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+            }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Simpan Perubahan';
+                        }
+                        if (res.success) {
+                            showToast(res.message || 'Pengajuan lembur berhasil diperbarui.', 'success');
+                            closeEditModal();
+                            loadAllDataFromServer();
+                        } else {
+                            alert(res.message);
+                        }
+                    })
+                    .withFailureHandler(function(err) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Simpan Perubahan';
+                        }
+                        alert("Gagal memperbarui ke Spreadsheet: " + err.message);
+                    })
+                    .editOvertimeRequest(payload);
+            }
+        }
+
+        async function deleteRequest(id) {
+            const confirmed = await showCustomConfirm({
+                title: "Hapus Pengajuan Lembur?",
+                message: "Data lembur yang dihapus tidak dapat dipulihkan kembali. Lanjutkan tindakan?",
+                confirmText: "Hapus Data",
+                type: "danger"
+            });
+
+            if (!confirmed) return;
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (res.success) {
+                            showToast('Pengajuan lembur berhasil dihapus.', 'info');
+                            loadAllDataFromServer();
+                        } else {
+                            showToast(res.message, 'error');
+                        }
+                    })
+                    .deleteOvertimeRequest(id);
+            }
+        }
+
+        // ==========================================
+        // 5. REPORTS / PAYROLL VIEW DENGAN ADJUST JAM
+        // ==========================================
+        function getCurrentPeriodeKey() {
+            const cabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
+            const bulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
+            const tahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
+            return `${cabang}_${bulan}_${tahun}`;
+        }
+
+        // ==========================================
+        // SAKELAR TAMPILAN VIEW MODE (DIPERBAIKI)
+        // ==========================================
+        function switchRekapViewMode(mode) {
+            rekapViewMode = mode;
+            const btnAsli = document.getElementById('btn-view-asli');
+            const btnAdjust = document.getElementById('btn-view-adjust');
+            
+            if (btnAsli && btnAdjust) {
+                if (mode === 'asli') {
+                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold";
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                } else {
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold";
+                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                }
+            }
+            renderReportsView();
+        }
+
+        function switchClaimViewMode(mode) {
+            claimViewMode = mode;
+            const btnAsli = document.getElementById('btn-claim-view-asli');
+            const btnAdjust = document.getElementById('btn-claim-view-adjust');
+
+            if (btnAsli && btnAdjust) {
+                if (mode === 'asli') {
+                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold";
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                } else {
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold";
+                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                }
+            }
+            renderReportsView();
+        }
+
+        // ==========================================
+        // RENDER LENGKAP REPORTS & PAYROLL
+        // ==========================================
+        function renderReportsView() {
+            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
+            const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
+            const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
+            const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
+            const bulanNama = selectedBulan === 'ALL' ? 'Semua Bulan' : getBulanName(selectedBulan);
+
+            // Filter Akurat Tahan Banting (Format Teks/Tanggal/Cabang)
+            const filteredRequests = overtimeRequests.filter(r => {
+                let reqYear = "", reqMonth = "";
+                if (r.tanggal) {
+                    const tStr = r.tanggal.toString().trim();
+                    // Mendukung format YYYY-MM-DD maupun DD/MM/YYYY
+                    const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            reqYear = parts[0];
+                            reqMonth = parseInt(parts[1], 10).toString();
+                        } else if (parts[2].length === 4) {
+                            reqYear = parts[2];
+                            reqMonth = parseInt(parts[1], 10).toString();
+                        }
+                    }
+                }
+
+                // Pencocokan cabang fleksibel (misal "D660" cocok dengan "D660 - Ahmad Yani")
+                const targetCabang = selectedCabang.toUpperCase();
+                const sheetCabang = (r.cabang || '').toString().toUpperCase();
+                const isCabangMatch = sheetCabang.includes(targetCabang) || targetCabang.includes(sheetCabang);
+
+                if (isAdmin) {
+                    const isYearMatch = reqYear ? (reqYear === selectedTahun) : true;
+                    const isMonthMatch = (selectedBulan === 'ALL') || (reqMonth === selectedBulan);
+                    return isCabangMatch && isYearMatch && isMonthMatch;
+                } else {
+                    return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
+                }
+            });
+
+            // Urutkan berdasarkan NPK terkecil ke terbesar
+            filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
+
+            if (isAdmin) {
+                const elTitleRekap = document.getElementById('title-rekap-upah');
+                const elTitleClaim = document.getElementById('title-claim-payroll');
+                
+                // Cukup gunakan judul tetap yang bersih karena cabang, bulan, dan tahun sudah jelas ada di dropdown filter atas
+                if (elTitleRekap) elTitleRekap.innerText = "Rekapitulasi Lembur Karyawan";
+                if (elTitleClaim) elTitleClaim.innerText = "Log Rincian Harian Lembur";
+            }
+
+            // 1. RENDER TABEL REKAPITULASI UPAH
+            if (isAdmin) {
+                const rekapTbody = document.getElementById('table-rekapitulasi-body');
+                const rekapTfoot = document.getElementById('table-rekapitulasi-foot');
+                const employeeMap = {};
+
+                filteredRequests.forEach(r => {
+                    const npkKey = (r.npk || '').toString().trim();
+                    if (!employeeMap[npkKey]) {
+                        employeeMap[npkKey] = { nama: r.nama, npk: npkKey, gaji: Number(r.gaji) || 5000000, lembur1: 0, lembur2: 0, lembur3: 0, lembur4: 0 };
+                    }
+                    const dur = Number(r.durasiHours) || 0;
+                    employeeMap[npkKey].lembur1 += Math.min(dur, 1);
+                    employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
+                });
+
+                const employeeList = Object.values(employeeMap);
+                employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
+
+                let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
+                rekapTbody.innerHTML = employeeList.map((emp, idx) => {
+                    const adj = (rekapViewMode === 'adjust') ? adjustmentsMap[emp.npk] : null;
+                    const l1 = adj ? adj.lembur1 : emp.lembur1;
+                    const l2 = adj ? adj.lembur2 : emp.lembur2;
+                    const l3 = 0, l4 = 0;
+
+                    const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+                    const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
+
+                    const origPoin = (emp.lembur1 * 1.5) + (emp.lembur2 * 2.7);
+                    const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
+                    const isAdjusted = !!adjustmentsMap[emp.npk];
+
+                    gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition-all ${isAdjusted && rekapViewMode === 'adjust' ? 'bg-amber-50/40' : ''}">
+                            <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                            <td class="py-3 px-4 font-bold border-r border-slate-100">${emp.nama}</td>
+                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${emp.npk}</td>
+                            <td class="py-3 px-4 text-right border-r border-slate-100">Rp ${emp.gaji.toLocaleString('id-ID')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                            <td class="py-3 px-4 text-center font-bold text-slate-900 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-right font-bold text-emerald-600 border-r border-slate-100">Rp ${estimasiLembur.toLocaleString('id-ID')}</td>
+                            <td class="py-3 px-4 text-center">
+                                <button onclick="openAdjustModal('${emp.npk}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-sm">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> Adjust (${percent}%)
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') || `<tr><td colspan="11" class="text-center py-6 text-slate-400">Belum ada data rekapitulasi lembur untuk filter ini.</td></tr>`;
+
+                rekapTfoot.innerHTML = employeeList.length > 0 ? `
+                    <tr>
+                        <td colspan="4" class="py-3.5 px-4 text-center font-bold uppercase border-r border-amber-200">Total Keseluruhan</td>
+                        <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL1.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL2.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
+                        <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
+                        <td class="py-3.5 px-4 text-center font-bold border-r border-amber-200">${gPoin.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3.5 px-4 text-right font-extrabold text-emerald-700 border-r border-amber-200">Rp ${gEst.toLocaleString('id-ID')}</td>
+                        <td class="py-3.5 px-4 text-center">-</td>
+                    </tr>
+                ` : '';
+            }
+
+            // 2. RENDER TABEL CLAIM LOG DETAIL HARIAN
+            const headerRow = document.getElementById('table-claim-header-row');
+            if (headerRow) {
+                headerRow.innerHTML = isAdmin ? `
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
+                    <th class="py-3 px-4">Keterangan</th>
+                ` : `
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50">Keterangan</th>
+                    <th class="py-3 px-4 text-center">Status</th>
+                `;
+            }
+
+            const claimTbody = document.getElementById('table-claim-payroll-body');
+            const colSpanCount = isAdmin ? 10 : 11;
+
+            claimTbody.innerHTML = filteredRequests.map((r, idx) => {
+                let dur = Number(r.durasiHours) || 0;
+                
+                // Jika mode adjust aktif dan tanggal/item ini pernah diedit, pakai durasi hasil edit item tersebut
+                if (claimViewMode === 'adjust' && adjustmentsMap[r.npk] && adjustmentsMap[r.npk].items && adjustmentsMap[r.npk].items[r.id]) {
+                    dur = Number(adjustmentsMap[r.npk].items[r.id].durasiHours);
+                }
+
+                const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
+                let l1 = 0;
+                let l2 = 0;
+
+                if (isHariLibur) {
+                    l2 = dur;
+                } else {
+                    l1 = Math.min(dur, 1);
+                    l2 = Math.max(0, dur - 1);
+                }
+
+                const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                        <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
+                        <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                        <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
+                        <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
+                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+        }
+
+        // ==========================================
+        // EKSPOR EXCEL NATIVE FORMULAS (Diperbarui)
+        // ==========================================
+        function exportToExcel(type) {
+            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
+            const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
+            const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : 'ALL';
+            const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
+            const bulanNama = selectedBulan === 'ALL' ? 'Semua_Bulan' : getBulanName(selectedBulan);
+
+            const filteredRequests = overtimeRequests.filter(r => {
+                let reqYear = "", reqMonth = "";
+                if (r.tanggal) {
+                    const tStr = r.tanggal.toString();
+                    // Deteksi separator - atau /
+                    const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) { reqYear = parts[0]; reqMonth = parseInt(parts[1], 10).toString(); }
+                        else if (parts[2].length === 4) { reqYear = parts[2]; reqMonth = parseInt(parts[1], 10).toString(); }
+                    } else {
+                        // Antisipasi format ejaan (misal: 25 Jul 2026)
+                        const months = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
+                        reqYear = selectedTahun;
+                        reqMonth = (months.findIndex(m => tStr.toLowerCase().includes(m)) + 1).toString();
+                    }
+                }
+                const statusClean = (r.status || '').toString().toLowerCase();
+                const isApproved = ['diterima', 'approved', 'revisi'].includes(statusClean);
+                
+                if (isAdmin) {
+                    const isCabangMatch = (r.cabang || '').toUpperCase().includes(selectedCabang.toUpperCase());
+                    return isApproved && isCabangMatch && (reqYear === selectedTahun) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
+                } else {
+                    return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim() && isApproved;
+                }
+            });
+
+            // Urutkan berdasarkan NPK terkecil ke terbesar
+            filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
+            const formatIndoNum = (num) => (Number(num) || 0).toFixed(2).replace('.', ',');
+            let tableHTML = '';
+
+            if (type === 'rekap_asli' || type === 'rekap_adjust') {
+                const isAdjustMode = (type === 'rekap_adjust');
+                const employeeMap = {};
+                
+                filteredRequests.forEach(r => {
+                    const npkKey = (r.npk || '').toString().trim();
+                    if (!employeeMap[npkKey]) {
+                        employeeMap[npkKey] = { nama: r.nama, npk: npkKey, gaji: Number(r.gaji) || 5000000, lembur1: 0, lembur2: 0 };
+                    }
+                    const dur = Number(r.durasiHours) || 0;
+                    const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
+
+                    if (isHariLibur) {
+                        employeeMap[npkKey].lembur2 += dur;
+                    } else {
+                        employeeMap[npkKey].lembur1 += Math.min(dur, 1);
+                        employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
+                    }
+                });
+                const employeeList = Object.values(employeeMap);
+                employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));   
+                
+                const startRow = 4; // Data pertama mulai di baris ke-4
+                const dataRows = employeeList.map((emp, idx) => {
+                    const rowNum = startRow + idx;
+                    const adj = isAdjustMode ? adjustmentsMap[emp.npk] : null;
+                    const l1 = adj ? adj.lembur1 : emp.lembur1;
+                    const l2 = adj ? adj.lembur2 : emp.lembur2;
+                    
+                    // Rumus membaca baris aktif (E4, F4, G4, H4) dan gaji di D4
+                    const formulaPoin = `=(E${rowNum}*1,5)+(F${rowNum}*2,7)+(G${rowNum}*3)+(H${rowNum}*4)`;
+                    const formulaEstimasi = `=ROUND((D${rowNum}/173)*I${rowNum}; 0)`;
+
+                    return `<tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td style="text-align:left; font-weight:bold;">${emp.nama}</td>
+                        <td style="text-align:center; mso-number-format:'\\@';">'${emp.npk}</td>
+                        <td style="text-align:right; mso-number-format:'Rp\\ #\\,##0';">${emp.gaji}</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">${formatIndoNum(l1)}</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">${formatIndoNum(l2)}</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">0,00</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">0,00</td>
+                        <td style="text-align:center; font-weight:bold; mso-number-format:'\\#\\,\\#\\#0\\.00';">${formulaPoin}</td>
+                        <td style="text-align:right; font-weight:bold; color:#059669; mso-number-format:'Rp\\ #\\,##0';">${formulaEstimasi}</td>
+                    </tr>`;
+                }).join('');
+
+                const endRow = startRow + employeeList.length - 1;
+                const totalFooterRow = employeeList.length > 0 ? `
+                    <tr style="background-color:#fef3c7; font-weight:bold;">
+                        <td colspan="4" style="text-align:center;">TOTAL KESELURUHAN</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(E${startRow}:E${endRow})</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(F${startRow}:F${endRow})</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(G${startRow}:G${endRow})</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(H${startRow}:H${endRow})</td>
+                        <td style="text-align:center; font-weight:bold; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(I${startRow}:I${endRow})</td>
+                        <td style="text-align:right; color:#059669; mso-number-format:'Rp\\ #\\,##0';">=SUM(J${startRow}:J${endRow})</td>
+                    </tr>` : '';
+
+                tableHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                    <head><meta charset="utf-8"><style>table{border-collapse:collapse;}th{background:#fef3c7;border:1px solid #d97706;}td{border:1px solid #cbd5e1;}</style></head>
+                    <body>
+                        <h2 style="text-align:center;">REKAPITULASI UPAH LEMBUR ${isAdjustMode ? '(ADJUST)' : '(ASLI)'}</h2>
+                        <table border="1">
+                            <thead><tr><th>No</th><th>Nama</th><th>NPK</th><th>Gaji</th><th>Lembur I</th><th>Lembur II</th><th>Lembur III</th><th>Lembur IV</th><th>Total Poin</th><th>Estimasi Lembur</th></tr></thead>
+                            <tbody>${dataRows}${totalFooterRow}</tbody>
+                        </table>
+                    </body></html>`;
+
+            } else {
+                // EXPORT CLAIM LOG DETAIL HARIAN
+                const isClaimAdjust = (type === 'claim_adjust');
+                const startRow = 4; // Data pertama berada di baris ke-4 Excel
+
+                const dataRows = filteredRequests.map((r, idx) => {
+                    const rowNum = startRow + idx;
+                    let dur = Number(r.durasiHours) || 0;
+                    
+                    if (isClaimAdjust && adjustmentsMap[r.npk] && adjustmentsMap[r.npk].items && adjustmentsMap[r.npk].items[r.id]) {
+                        dur = Number(adjustmentsMap[r.npk].items[r.id].durasiHours);
+                    }
+                    
+                    const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
+                    let l1 = 0;
+                    let l2 = 0;
+
+                    if (isHariLibur) {
+                        l2 = dur;
+                    } else {
+                        l1 = Math.min(dur, 1);
+                        l2 = Math.max(0, dur - 1);
+                    }
+
+                    // Rumus membaca D4, E4, F4, G4 sesuai baris aktifnya
+                    const formulaPoin = `=(D${rowNum}*1,5)+(E${rowNum}*2,7)+(F${rowNum}*3)+(G${rowNum}*4)`;
+
+                    return `<tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td style="text-align:left; font-weight:bold;">${r.nama}</td>
+                        <td style="text-align:center; mso-number-format:'\\@';">'${r.npk}</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">${formatIndoNum(l1)}</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">${formatIndoNum(l2)}</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">0,00</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">0,00</td>
+                        <td style="text-align:center; font-weight:bold; mso-number-format:'\\#\\,\\#\\#0\\.00';">${formulaPoin}</td>
+                        <td style="text-align:center;">${r.tanggal}</td>
+                        <td style="text-align:left;">${r.pekerjaan}</td>
+                    </tr>`;
+                }).join('');
+
+                const endRow = startRow + filteredRequests.length - 1;
+                const totalFooterRow = filteredRequests.length > 0 ? `
+                    <tr style="background-color:#ffedd5; font-weight:bold;">
+                        <td colspan="3" style="text-align:center;">TOTAL KESELURUHAN</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(D${startRow}:D${endRow})</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(E${startRow}:E${endRow})</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(F${startRow}:F${endRow})</td>
+                        <td style="text-align:center; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(G${startRow}:G${endRow})</td>
+                        <td style="text-align:center; font-weight:bold; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(H${startRow}:H${endRow})</td>
+                        <td colspan="2">-</td>
+                    </tr>` : '';
+
+                tableHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                    <head><meta charset="utf-8"><style>table{border-collapse:collapse;}th{background:#ffedd5;border:1px solid #ea580c;}td{border:1px solid #cbd5e1;}</style></head>
+                    <body>
+                        <h2 style="text-align:center;">CLAIM LOG DETAIL HARIAN ${isClaimAdjust ? '(ADJUST)' : '(ASLI)'}</h2>
+                        <table border="1">
+                            <thead><tr><th>No.</th><th>Nama</th><th>NPK</th><th>Lembur I</th><th>Lembur II</th><th>Lembur III</th><th>Lembur IV</th><th>Total Poin</th><th>Tanggal</th><th>Keterangan</th></tr></thead>
+                            <tbody>${dataRows}${totalFooterRow}</tbody>
+                        </table>
+                    </body></html>`;
+            }
+
+            const blob = new Blob(['\ufeff', tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Export_Overtime_${type.toUpperCase()}_${selectedCabang}.xls`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function fetchServerAdjustments() {
+            const periodeKey = getCurrentPeriodeKey();
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (res && res.success) {
+                            adjustmentsMap = res.data || {};
+                            renderReportsView();
+                        } else {
+                            renderReportsView();
+                        }
+                    })
+                    .withFailureHandler(function() {
+                        renderReportsView();
+                    })
+                    .getAdjustmentsByPeriod(periodeKey);
+            } else {
+                renderReportsView();
+            }
+        }
+
+        // ==========================================
+        // 6. MODAL ADJUST BERBASIS JAM DARI - SAMPAI
+        // ==========================================
+        function openAdjustModal(npk) {
+            const selectedCabang = document.getElementById('filter-report-cabang').value;
+            const selectedBulan = document.getElementById('filter-report-bulan').value;
+            const selectedTahun = document.getElementById('filter-report-tahun').value;
+
+            const userReqs = overtimeRequests.filter(r => {
+                let reqYear = "", reqMonth = "";
+                if (r.tanggal) {
+                    const parts = r.tanggal.toString().split('-');
+                    if (parts.length === 3) {
+                        reqYear = parts[0];
+                        reqMonth = parseInt(parts[1], 10).toString();
+                    }
+                }
+                const isCabangMatch = (r.cabang || '').toUpperCase().includes(selectedCabang.toUpperCase());
+                return ((r.npk || '').toString().trim() === npk.toString().trim()) && isCabangMatch && (reqYear === selectedTahun) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
+            });
+
+            if (userReqs.length === 0) {
+                showToast("Tidak ada data lembur yang dapat disesuaikan untuk karyawan ini.", "info");
+                return;
+            }
+
+            const empSample = userReqs[0];
+            currentAdjustTarget = {
+                npk: npk,
+                nama: empSample.nama,
+                gaji: Number(empSample.gaji) || 5000000,
+                requests: JSON.parse(JSON.stringify(userReqs))
+            };
+
+            document.getElementById('adjust-npk').value = npk;
+            document.getElementById('adjust-info-nama').innerText = currentAdjustTarget.nama;
+            document.getElementById('adjust-info-npk').innerText = npk;
+            document.getElementById('adjust-info-gaji').innerText = `Rp ${currentAdjustTarget.gaji.toLocaleString('id-ID')}`;
+
+            const tbody = document.getElementById('adjust-log-rows-body');
+            
+            // Cek apakah karyawan ini sudah memiliki data adjust tersimpan
+            const savedAdj = adjustmentsMap[npk];
+
+            tbody.innerHTML = currentAdjustTarget.requests.map((r, i) => {
+                // Ambil jam yang sudah disesuaikan jika ada, jika belum pakai jam asli
+                let valStart = r.jamMulai;
+                let valEnd = r.jamSelesai;
+                let valDur = Number(r.durasiHours || 0);
+
+                if (savedAdj && savedAdj.items && savedAdj.items[r.id]) {
+                    valStart = savedAdj.items[r.id].jamMulai || valStart;
+                    valEnd = savedAdj.items[r.id].jamSelesai || valEnd;
+                    valDur = Number(savedAdj.items[r.id].durasiHours ?? valDur);
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="py-2.5 px-3 font-semibold">
+                            <div>${r.tanggal}</div>
+                            <div class="text-[10px] text-slate-400 font-normal truncate max-w-[150px]">${r.pekerjaan}</div>
+                        </td>
+                        <td class="py-2 px-2 text-center">
+                            <input type="time" id="adj-start-${i}" value="${valStart}" onchange="calculateLiveAdjustment()" class="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono">
+                        </td>
+                        <td class="py-2 px-2 text-center">
+                            <input type="time" id="adj-end-${i}" value="${valEnd}" onchange="calculateLiveAdjustment()" class="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono">
+                        </td>
+                        <td class="py-2 px-3 text-center font-bold text-blue-600 font-mono" id="adj-dur-${i}">
+                            ${valDur.toFixed(2).replace('.', ',')}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            calculateLiveAdjustment();
+            document.getElementById('adjust-modal').classList.remove('hidden');
+        }
+
+        function calculateLiveAdjustment() {
+            if (!currentAdjustTarget) return;
+
+            let totalJam = 0;
+            let totalL1 = 0;
+            let totalL2 = 0;
+
+            currentAdjustTarget.requests.forEach((r, i) => {
+                const jm = document.getElementById(`adj-start-${i}`).value;
+                const js = document.getElementById(`adj-end-${i}`).value;
+                let durasi = 0;
+
+                if (jm && js) {
+                    const start = new Date(`2000-01-01T${jm}:00`);
+                    let end = new Date(`2000-01-01T${js}:00`);
+                    if (end < start) end = new Date(`2000-01-02T${js}:00`);
+                    durasi = Math.max(0, (end - start) / (1000 * 60 * 60));
+                }
+
+                // Update teks durasi di baris modal secara langsung
+                const durEl = document.getElementById(`adj-dur-${i}`);
+                if (durEl) durEl.innerText = durasi.toFixed(2).replace('.', ',');
+
+                totalJam += durasi;
+
+                const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
+                if (isHariLibur) {
+                    totalL2 += durasi;
+                } else {
+                    totalL1 += Math.min(durasi, 1);
+                    totalL2 += Math.max(0, durasi - 1);
+                }
+            });
+
+            const totalPoin = (totalL1 * 1.5) + (totalL2 * 2.7);
+            const estimasi = Math.round((currentAdjustTarget.gaji / 173) * totalPoin);
+
+            let origL1 = 0, origL2 = 0;
+            currentAdjustTarget.requests.forEach(r => {
+                const d = Number(r.durasiHours) || 0;
+                const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
+                if (isHariLibur) {
+                    origL2 += d;
+                } else {
+                    origL1 += Math.min(d, 1);
+                    origL2 += Math.max(0, d - 1);
+                }
+            });
+            const origPoin = (origL1 * 1.5) + (origL2 * 2.7);
+            const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
+
+            document.getElementById('adjust-summary-total-jam').innerText = totalJam.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-l1').innerText = totalL1.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-l2').innerText = totalL2.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-poin').innerText = totalPoin.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-estimasi').innerText = `Rp ${estimasi.toLocaleString('id-ID')}`;
+            document.getElementById('adjust-summary-persen').innerText = `${percent}%`;
+
+            currentAdjustTarget.computed = {
+                lembur1: totalL1,
+                lembur2: totalL2,
+                lembur3: 0,
+                lembur4: 0
+            };
+        }
+
+        function saveAdjustment() {
+            // Pastikan perhitungan terakhir dieksekusi sebelum simpan
+            calculateLiveAdjustment();
+
+            if (!currentAdjustTarget || !currentAdjustTarget.computed) return;
+
+            const npk = currentAdjustTarget.npk;
+            const cabang = document.getElementById('filter-report-cabang').value;
+            const bulan = document.getElementById('filter-report-bulan').value;
+            const tahun = document.getElementById('filter-report-tahun').value;
+            const periodeKey = getCurrentPeriodeKey();
+
+            // Mapping rincian durasi per ID transaksi
+            const requestsMap = {};
+            currentAdjustTarget.requests.forEach((r, i) => {
+                const jm = document.getElementById(`adj-start-${i}`).value;
+                const js = document.getElementById(`adj-end-${i}`).value;
+                let dur = 0;
+                if (jm && js) {
+                    const start = new Date(`2000-01-01T${jm}:00`);
+                    let end = new Date(`2000-01-01T${js}:00`);
+                    if (end < start) end = new Date(`2000-01-02T${js}:00`);
+                    dur = Math.max(0, (end - start) / (1000 * 60 * 60));
+                }
+                requestsMap[r.id] = {
+                    jamMulai: jm,
+                    jamSelesai: js,
+                    durasiHours: dur
+                };
+            });
+
+            const comp = currentAdjustTarget.computed;
+            adjustmentsMap[npk] = {
+                lembur1: comp.lembur1,
+                lembur2: comp.lembur2,
+                lembur3: 0,
+                lembur4: 0,
+                items: requestsMap
+            };
+
+            const payload = {
+                periodeKey: periodeKey,
+                cabang: cabang,
+                bulan: bulan,
+                tahun: tahun,
+                npk: npk,
+                nama: currentAdjustTarget.nama,
+                lembur1: comp.lembur1,
+                lembur2: comp.lembur2,
+                lembur3: 0,
+                lembur4: 0,
+                isReset: false
+            };
+
+            closeAdjustModal();
+            renderReportsView();
+            showToast(`Penyesuaian jam lembur untuk ${currentAdjustTarget.nama} berhasil disimpan!`, 'success');
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withFailureHandler(function(err) {
+                        alert("Gagal sinkronisasi data adjust ke database: " + err.message);
+                    })
+                    .saveAdjustmentRecord(payload);
+            }
+        }
+
+        function resetAdjustment() {
+            if (!currentAdjustTarget) return;
+
+            const npk = currentAdjustTarget.npk;
+            const periodeKey = getCurrentPeriodeKey();
+
+            if (adjustmentsMap[npk]) {
+                delete adjustmentsMap[npk];
+            }
+
+            const payload = {
+                periodeKey: periodeKey,
+                npk: npk,
+                isReset: true
+            };
+
+            closeAdjustModal();
+            renderReportsView();
+            showToast(`Data jam lembur ${currentAdjustTarget.nama} dikembalikan ke jam asli.`, 'info');
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withFailureHandler(function(err) {
+                        alert("Gagal menghapus data adjust di database: " + err.message);
+                    })
+                    .saveAdjustmentRecord(payload);
+            }
+        }
+
+        function closeAdjustModal() {
+            document.getElementById('adjust-modal').classList.add('hidden');
+        }
+
+        function getBulanName(bulanNum) {
+            const bulanList = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            return bulanList[parseInt(bulanNum)] || 'Agustus';
+        }
+
+        // ==========================================
+        // 9. PROFILE & NOTIF UTILITIES
+        // ==========================================
+        function saveProfileSettings(e) {
+            e.preventDefault();
+            if (currentUser) {
+                currentUser.nama = document.getElementById('setting-nama').value;
+                currentUser.npk = document.getElementById('setting-npk').value;
+                currentUser.cabang = document.getElementById('setting-cabang').value;
+                currentUser.jabatan = document.getElementById('setting-jabatan').value;
+                updateProfileHeader();
+                showToast('Profil berhasil diperbarui.', 'success');
+            }
+        }
+
+        function toggleNotifications(e) {
+            if (e) e.stopPropagation();
+            const popover = document.getElementById('notif-popover');
+            const isOpening = popover.classList.contains('hidden');
+            popover.classList.toggle('hidden');
+
+            if (isOpening) {
+                notifications.forEach(n => n.read = true);
+                updateNotifBadge();
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('notif-wrapper');
+            const popover = document.getElementById('notif-popover');
+            if (wrapper && popover && !wrapper.contains(e.target)) {
+                popover.classList.add('hidden');
+            }
+        });
+
+        function updateNotifBadge() {
+            const list = document.getElementById('notif-list');
+            const badge = document.getElementById('notif-badge');
+            const countText = document.getElementById('notif-count-text');
+
+            const unreadCount = notifications.filter(n => !n.read).length;
+
+            if (unreadCount > 0) {
+                badge.classList.remove('hidden');
+                countText.innerText = `${unreadCount} Baru`;
+            } else {
+                badge.classList.add('hidden');
+                countText.innerText = '0 Baru';
+            }
+
+            if (notifications.length > 0) {
+                list.innerHTML = notifications.map(n => `
+                    <div class="p-2.5 ${n.read ? 'bg-slate-50 border-slate-200' : 'bg-blue-50/70 border-blue-100'} border rounded-xl transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs text-slate-800">${n.title}</span>
+                            ${!n.read ? '<span class="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-600 mt-0.5">${n.message}</p>
+                        <span class="text-[9px] text-slate-400 mt-1 block">${n.time}</span>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>`;
+            }
+        }
+
+        function showCustomConfirm(options) {
+            return new Promise((resolve) => {
+                confirmResolveCallback = resolve;
+
+                const modal = document.getElementById('custom-confirm-modal');
+                const box = document.getElementById('custom-confirm-box');
+                const titleEl = document.getElementById('confirm-modal-title');
+                const msgEl = document.getElementById('confirm-modal-message');
+                const okBtn = document.getElementById('confirm-modal-ok-btn');
+                const iconWrapper = document.getElementById('confirm-icon-wrapper');
+                const icon = document.getElementById('confirm-icon');
+
+                titleEl.innerText = options.title || 'Konfirmasi Aksi';
+                msgEl.innerHTML = options.message || 'Apakah Anda yakin ingin melanjutkan?';
+                okBtn.innerText = options.confirmText || 'Ya, Lanjutkan';
+
+                if (options.type === 'danger') {
+                    okBtn.className = "w-1/2 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-600/20 transition-all";
+                    iconWrapper.className = "w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner";
+                    icon.className = "fa-solid fa-triangle-exclamation";
+                } else {
+                    okBtn.className = "w-1/2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-emerald-600/20 transition-all";
+                    iconWrapper.className = "w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner";
+                    icon.className = "fa-solid fa-check-double";
+                }
+
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            });
+        }
+
+        function closeCustomConfirm(result) {
+            const modal = document.getElementById('custom-confirm-modal');
+            const box = document.getElementById('custom-confirm-box');
+
+            box.classList.remove('scale-100', 'opacity-100');
+            box.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (confirmResolveCallback) {
+                    confirmResolveCallback(result);
+                    confirmResolveCallback = null;
+                }
+            }, 150);
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-800 text-white';
+            let icon = 'fa-info-circle';
+            if (type === 'success') { bg = 'bg-emerald-600 text-white'; icon = 'fa-circle-check'; }
+            else if (type === 'error') { bg = 'bg-rose-600 text-white'; icon = 'fa-circle-exclamation'; }
+
+            toast.className = `${bg} px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 transition-all transform translate-y-2 opacity-0 duration-300`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+                // ==========================================
+        // 7. MANAJEMEN DATA KARYAWAN (ADMIN ONLY)
+        // ==========================================
+        function fetchKaryawanList() {
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(res => {
+                        if (res && res.success) {
+                            karyawanList = res.data || [];
+                            renderKaryawanTable();
+                        } else {
+                            showToast("Gagal muat Master Karyawan: " + (res ? res.message : ""), "error");
+                        }
+                    })
+                    .withFailureHandler(err => showToast("Koneksi gagal: " + err.message, "error"))
+                    .getMasterKaryawanList();
+            }
+        }
+
+        function renderKaryawanTable() {
+            const tbody = document.getElementById('karyawan-table-body');
+            const globalSearchInput = document.getElementById('global-search-input');
+            const cabangSelect = document.getElementById('filter-karyawan-cabang');
+            
+            // Ambil kata kunci dari kolom pencarian header atas
+            const query = globalSearchInput ? globalSearchInput.value.toLowerCase().trim() : "";
+            const selectedCabang = cabangSelect ? cabangSelect.value.toUpperCase().trim() : "ALL";
+
+            const filtered = karyawanList.filter(k => {
+                const matchSearch = (k.nama && k.nama.toLowerCase().includes(query)) ||
+                                    (k.npk && k.npk.toString().includes(query)) ||
+                                    (k.jabatan && k.jabatan.toLowerCase().includes(query));
+
+                const itemCabang = (k.cabang || "").toString().toUpperCase();
+                const matchCabang = (selectedCabang === "ALL") || itemCabang.includes(selectedCabang);
+
+                return matchSearch && matchCabang;
+            });
+
+            const badge = document.getElementById('karyawan-total-badge');
+            if (badge) badge.innerText = `Total: ${filtered.length} Karyawan`;
+
+            if (!tbody) return;
+
+            // Tambahkan baris sort ini:
+            filtered.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
+
+            tbody.innerHTML = filtered.map((k, idx) => `
+                <tr class="hover:bg-slate-50 transition-all">
+                    <td class="py-3 px-5 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                    <td class="py-3 px-5 font-mono font-bold text-slate-900 border-r border-slate-100">${k.npk}</td>
+                    <td class="py-3 px-5 font-bold border-r border-slate-100">${k.nama}</td>
+                    <td class="py-3 px-5 border-r border-slate-100">${k.cabang}</td>
+                    <td class="py-3 px-5 border-r border-slate-100">${k.jabatan}</td>
+                    <td class="py-3 px-5 text-right font-mono border-r border-slate-100">Rp ${Number(k.gaji || 0).toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-5 text-center border-r border-slate-100">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${k.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}">
+                            ${(k.role || 'user').toUpperCase()}
+                        </span>
+                    </td>
+                    <td class="py-3 px-5 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="openEditKaryawanModal('${k.npk}')" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all" title="Edit Karyawan">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="handleDeleteKaryawan('${k.npk}', '${k.nama.replace(/'/g, "\\'")}')" class="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all" title="Hapus Karyawan">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="8" class="text-center py-6 text-slate-400">Tidak ada data karyawan ditemukan.</td></tr>`;
+        }
+
+        function openKaryawanModal() {
+            document.getElementById('karyawan-form').reset();
+            document.getElementById('karyawan-is-edit').value = "false";
+            document.getElementById('karyawan-npk').readOnly = false;
+            document.getElementById('modal-karyawan-title').innerText = "Tambah Karyawan Baru";
+            document.getElementById('karyawan-modal').classList.remove('hidden');
+        }
+
+        function openEditKaryawanModal(npk) {
+            const item = karyawanList.find(k => k.npk.toString().trim() === npk.toString().trim());
+            if (!item) return;
+
+            document.getElementById('karyawan-is-edit').value = "true";
+            document.getElementById('karyawan-npk').value = item.npk;
+
+            // ✅ Tambahkan atribut ini untuk menyimpan NPK lama sebagai referensi pencarian baris di Spreadsheet
+            let oldNpkInput = document.getElementById('karyawan-old-npk');
+            if (!oldNpkInput) {
+                oldNpkInput = document.createElement('input');
+                oldNpkInput.type = 'hidden';
+                oldNpkInput.id = 'karyawan-old-npk';
+                document.getElementById('karyawan-form').appendChild(oldNpkInput);
+            }
+            oldNpkInput.value = item.npk;
+
+            document.getElementById('karyawan-nama').value = item.nama;
+            document.getElementById('karyawan-cabang').value = item.cabang;
+            document.getElementById('karyawan-jabatan').value = item.jabatan;
+            document.getElementById('karyawan-gaji').value = item.gaji;
+            document.getElementById('karyawan-role').value = item.role || 'user';
+            document.getElementById('karyawan-email').value = item.email || '';
+
+            document.getElementById('modal-karyawan-title').innerText = `Edit Karyawan - NPK ${item.npk}`;
+            document.getElementById('karyawan-modal').classList.remove('hidden');
+        }
+
+        function closeKaryawanModal() {
+            document.getElementById('karyawan-modal').classList.add('hidden');
+        }
+
+        function handleKaryawanSubmit(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('btn-submit-karyawan');
+            const isEdit = document.getElementById('karyawan-is-edit').value === "true";
+            const oldNpkEl = document.getElementById('karyawan-old-npk');
+
+            const payload = {
+                isEdit: isEdit,
+                oldNpk: oldNpkEl ? oldNpkEl.value.trim() : "", // NPK lama untuk pencarian baris
+                npk: document.getElementById('karyawan-npk').value.trim(), // NPK baru
+                nama: document.getElementById('karyawan-nama').value.trim(),
+                cabang: document.getElementById('karyawan-cabang').value,
+                jabatan: document.getElementById('karyawan-jabatan').value.trim(),
+                gaji: Number(document.getElementById('karyawan-gaji').value) || 0,
+                role: document.getElementById('karyawan-role').value,
+                email: document.getElementById('karyawan-email').value.trim()
+            };
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+            }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Simpan Karyawan';
+                        }
+                        if (res.success) {
+                            showToast(res.message, 'success');
+                            closeKaryawanModal();
+                            fetchKaryawanList();
+                            loadAllDataFromServer();
+                        } else {
+                            alert(res.message);
+                        }
+                    })
+                    .withFailureHandler(function(err) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'Simpan Karyawan';
+                        }
+                        alert("Gagal memproses data karyawan: " + err.message);
+                    })
+                    .saveMasterKaryawan(payload);
+            }
+        }
+
+        async function handleDeleteKaryawan(npk, nama) {
+            const confirmed = await showCustomConfirm({
+                title: "Hapus Data Karyawan?",
+                message: `Apakah Anda yakin ingin menghapus <b>${nama} (NPK: ${npk})</b> dari database master karyawan?`,
+                confirmText: "Hapus Karyawan",
+                type: "danger"
+            });
+
+            if (!confirmed) return;
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(res) {
+                        if (res.success) {
+                            showToast(res.message, 'info');
+                            fetchKaryawanList();
+                            loadAllDataFromServer();
+                        } else {
+                            showToast(res.message, 'error');
+                        }
+                    })
+                    .deleteMasterKaryawan(npk);
+            }
+        }
+
+    </script>
+</body>
+</html>
