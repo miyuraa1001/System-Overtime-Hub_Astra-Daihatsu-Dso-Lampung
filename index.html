@@ -1073,6 +1073,37 @@
         let rekapViewMode = 'adjust';
         let claimViewMode = 'adjust';
 
+        // 🛠️ 1. TARUH callServer DI SINI (SEBAGAI GLOBAL FUNCTION)
+        const callServer = async (functionName, payload) => {
+            try {
+                if (typeof google !== 'undefined' && google.script && google.script.run && !window.location.hostname.includes('vercel.app')) {
+                    return new Promise((resolve, reject) => {
+                        let runner = google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject);
+                        
+                        if (payload !== undefined) {
+                            runner[functionName](payload);
+                        } else {
+                            runner[functionName]();
+                        }
+                    });
+                }
+        
+                const response = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: functionName, payload: payload })
+                });
+        
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error("API Error:", error);
+                return { success: false, message: "Koneksi ke server gagal: " + error.message };
+            }
+        };
+
         // ==========================================
         // 1. INISIALISASI SESI
         // ==========================================
@@ -1095,45 +1126,6 @@
                     localStorage.removeItem('overtime_saved_credentials');
                 }
             }
-
-            // Fungsi pengganti google.script.run yang aman melalui server Vercel & Google Apps Script
-            const callServer = async (functionName, payload) => {
-                try {
-                    // Cek apakah sedang dibuka langsung di lingkungan Apps Script asli (/dev atau /exec murni Google)
-                    if (typeof google !== 'undefined' && google.script && google.script.run && !window.location.hostname.includes('vercel.app')) {
-                        return new Promise((resolve, reject) => {
-                            let runner = google.script.run
-                                .withSuccessHandler(resolve)
-                                .withFailureHandler(reject);
-                            
-                            if (payload !== undefined) {
-                                runner[functionName](payload);
-                            } else {
-                                runner[functionName]();
-                            }
-                        });
-                    }
-            
-                    // Jika dibuka dari domain Vercel, arahkan melalui Vercel Serverless Function (/api/proxy)
-                    const response = await fetch('/api/proxy', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: functionName,
-                            payload: payload
-                        })
-                    });
-            
-                    const result = await response.json();
-                    return result;
-                } catch (error) {
-                    console.error("API Error:", error);
-                    return { success: false, message: "Koneksi ke server gagal: " + error.message };
-                }
-            };
-
             const savedUser = localStorage.getItem('overtime_user_session');
             if (savedUser) {
                 try {
