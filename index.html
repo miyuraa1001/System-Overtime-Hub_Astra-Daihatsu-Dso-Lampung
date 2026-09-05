@@ -58,7 +58,7 @@
                 <p class="text-xs text-slate-500 mt-1">Sistem Manajemen & Claim Payroll Lembur</p>
             </div>
 
-            <form id="login-form" onsubmit="handleLogin(event); return false;" class="space-y-4 relative z-10" autocomplete="on">
+            <div id="login-form" class="space-y-4 relative z-10">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-2">Username</label>
                     <div class="relative">
@@ -95,9 +95,9 @@
                     <span>Username atau Password salah!</span>
                 </div>
 
-                <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all">
+               <button type="button" onclick="handleLoginManual(event)" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all">
                     Masuk ke Sistem
-                </button>
+               </button>
             </form>
 
             <div class="mt-8 pt-6 border-t border-slate-100 text-center relative z-10">
@@ -2891,6 +2891,14 @@
             document.getElementById('karyawan-npk').readOnly = false;
             document.getElementById('modal-karyawan-title').innerText = "Tambah Karyawan Baru";
             document.getElementById('karyawan-modal').classList.remove('hidden');
+        }
+
+        function handleLoginManual(e) {
+            // Buat objek event palsu agar fungsi handleLogin yang lama bisa tetap berjalan normal
+            const fakeEvent = {
+                preventDefault: function() {}
+            };
+            handleLogin(fakeEvent);
         }
 
         function openEditKaryawanModal(npk) {
