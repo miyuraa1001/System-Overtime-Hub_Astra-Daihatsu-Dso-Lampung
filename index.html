@@ -1145,8 +1145,13 @@
         // 2. SISTEM LOGIN & LOGOUT
         // ==========================================
         async function handleLogin(e) {
-            e.preventDefault();
-        
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault(); // Mencegah form reload halaman dan lari ke URL
+            }
+            if (e && typeof e.stopPropagation === 'function') {
+                e.stopPropagation();
+            }
+            
             const usernameInput = document.getElementById('login-username').value.trim();
             const passwordInput = document.getElementById('login-password').value.trim();
             const errorBox = document.getElementById('login-error');
