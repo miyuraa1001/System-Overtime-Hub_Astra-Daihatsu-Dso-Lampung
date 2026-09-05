@@ -1776,26 +1776,25 @@
             `).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada pengajuan yang membutuhkan keputusan.</td></tr>`;
         }
 
-        function handleApproval(id, status) {
+        async function handleApproval(id, status) {
             const targetReq = overtimeRequests.find(r => r.id === id);
             const isAccepted = (status === 'Diterima' || status === 'Approved');
             const newStatus = isAccepted ? 'Diterima' : 'Ditolak';
-            const toastMsg = isAccepted ? 'Pengajuan lembur berhasil diterima!' : 'Pengajuan lembur berhasil ditolak!';
-            const toastType = isAccepted ? 'success' : 'error';
 
             if (targetReq) {
-                targetReq.status = newStatus;
+                targetReq.status = newStatus; // Update lokal sementara
                 renderAllViews();
-                showToast(toastMsg, toastType);
+                showToast(isAccepted ? 'Pengajuan lembur diterima!' : 'Pengajuan lembur ditolak!', isAccepted ? 'success' : 'error');
             }
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withFailureHandler(function(err) {
-                        alert("Gagal sinkronisasi ke database: " + err.message);
-                        loadAllDataFromServer();
-                    })
-                    .updateOvertimeStatus(id, newStatus);
+            // Kirim ke backend Google Apps Script dan tunggu hasilnya
+            const res = await callServer('updateOvertimeStatus', { id: id, status: newStatus });
+            
+            if (res && res.success) {
+                loadAllDataServer(); // Muat ulang data terbaru dari spreadsheet asli
+            } else {
+                showToast("Gagal memperbarui status di database.", "error");
+                loadAllDataServer(); // Rollback jika gagal
             }
         }
 
