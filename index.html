@@ -1107,8 +1107,10 @@
         // ==========================================
         // 1. INISIALISASI SESI
         // ==========================================
-        window.onload = function () {
+        window.onload = async function () { // <-- Tambahkan 'async' di sini
             initRealtimeFilterDates();
+            const result = await callServer('authLogin', ...); // Aman karena sudah di dalam async function
+        }
 
             // Isi otomatis kredensial jika sebelumnya dicentang 'Ingat Saya'
             const savedCreds = localStorage.getItem('overtime_saved_credentials');
