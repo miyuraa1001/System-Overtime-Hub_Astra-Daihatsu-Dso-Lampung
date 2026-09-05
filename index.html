@@ -1107,10 +1107,11 @@
         // ==========================================
         // 1. INISIALISASI SESI
         // ==========================================
-        window.onload = async function () { // <-- Tambahkan 'async' di sini
+        // ==========================================
+        // 1. INISIALISASI SESI
+        // ==========================================
+        window.onload = async function () {
             initRealtimeFilterDates();
-            const result = await callServer('authLogin', ...); // Aman karena sudah di dalam async function
-        }
 
             // Isi otomatis kredensial jika sebelumnya dicentang 'Ingat Saya'
             const savedCreds = localStorage.getItem('overtime_saved_credentials');
@@ -1128,6 +1129,7 @@
                     localStorage.removeItem('overtime_saved_credentials');
                 }
             }
+
             const savedUser = localStorage.getItem('overtime_user_session');
             if (savedUser) {
                 try {
@@ -1137,7 +1139,7 @@
                     document.getElementById('login-screen').classList.add('hidden');
                     applyRolePermissions();
                     updateProfileHeader();
-                    loadAllDataFromServer();
+                    await loadAllDataFromServer();
                 } catch (e) {
                     localStorage.removeItem('overtime_user_session');
                     document.getElementById('login-screen').classList.remove('hidden');
