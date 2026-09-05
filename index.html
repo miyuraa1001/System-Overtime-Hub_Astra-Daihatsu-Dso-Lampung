@@ -58,7 +58,7 @@
                 <p class="text-xs text-slate-500 mt-1">Sistem Manajemen & Claim Payroll Lembur</p>
             </div>
 
-            <div id="login-form" class="space-y-4 relative z-10">
+            <form id="login-form" onsubmit="handleLogin(event); return false;" class="space-y-4 relative z-10" autocomplete="on">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-2">Username</label>
                     <div class="relative">
@@ -95,7 +95,7 @@
                     <span>Username atau Password salah!</span>
                 </div>
 
-               <button type="button" onclick="handleLoginManual(event)" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all">
+               <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all">
                     Masuk ke Sistem
                </button>
             </form>
