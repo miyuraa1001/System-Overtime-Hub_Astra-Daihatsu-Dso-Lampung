@@ -1104,13 +1104,11 @@
             }
         };
 
+
         // ==========================================
-        // 1. INISIALISASI SESI
+        // 1. INISIALISASI SESI (TANPA ASYNC/AWAIT DI LUAR)
         // ==========================================
-        // ==========================================
-        // 1. INISIALISASI SESI
-        // ==========================================
-        window.onload = async function () {
+        window.onload = function () {
             initRealtimeFilterDates();
 
             // Isi otomatis kredensial jika sebelumnya dicentang 'Ingat Saya'
@@ -1139,16 +1137,16 @@
                     document.getElementById('login-screen').classList.add('hidden');
                     applyRolePermissions();
                     updateProfileHeader();
-                    await loadAllDataServer();
+                    loadAllDataFromServer();
                 } catch (e) {
                     localStorage.removeItem('overtime_user_session');
                     document.getElementById('login-screen').classList.remove('hidden');
                 }
             } else {
-                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('login-screen').classList.add('hidden');
             }
         };
-
+        
         // ==========================================
         // 2. SISTEM LOGIN & LOGOUT
         // ==========================================
