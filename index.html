@@ -45,8 +45,8 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased h-full w-full flex flex-col">
 
-   <!-- SCREEN 0: LOGIN OVERLAY (FULL SCREEN TANPA SISA PUTIH) -->
-    <div id="login-screen" class="fixed inset-0 w-full h-full bg-slate-900/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+   <!-- SCREEN 0:  OVERLAY (FULL SCREEN TANPA SISA PUTIH) -->
+    <div id="-screen" class="fixed inset-0 w-full h-full bg-slate-900/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
         <div class="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md p-8 relative overflow-hidden">
             <div class="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl"></div>
             
@@ -58,7 +58,7 @@
                 <p class="text-xs text-slate-500 mt-1">Sistem Manajemen & Claim Payroll Lembur</p>
             </div>
 
-            <form id="login-form" onsubmit="handleLogin(event); return false;" class="space-y-4 relative z-10" autocomplete="on">
+            <form id="login-form" onsubmit="handleLogin(event); return false;" method="POST" class="space-y-4 relative z-10" autocomplete="on">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-2">Username</label>
                     <div class="relative">
