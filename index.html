@@ -1818,21 +1818,24 @@
 
             const pendingIds = pendingList.map(r => r.id);
 
+            // Update tampilan lokal sementara
             overtimeRequests.forEach(r => {
                 if ((r.status || '').toString().toLowerCase() === 'pending') {
                     r.status = 'Diterima';
                 }
             });
             renderAllViews();
-            showToast(`${total} pengajuan lembur berhasil diterima!`, 'success');
+            showToast(`Memproses ${total} pengajuan lembur...`, 'info');
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withFailureHandler(function(err) {
-                        alert("Gagal memproses update di spreadsheet: " + err.message);
-                        loadAllDataFromServer();
-                    })
-                    .approveAllPendingOvertime(pendingIds);
+            // Kirim daftar ID ke backend menggunakan callServer
+            const res = await callServer('approveAllPendingOvertime', { ids: pendingIds });
+
+            if (res && res.success) {
+                showToast(`${total} pengajuan lembur berhasil diterima!`, 'success');
+                loadAllDataServer();
+            } else {
+                showToast("Gagal memproses Terima Semua: " + (res ? res.message : "Kesalahan server"), "error");
+                loadAllDataServer(); // Rollback jika gagal
             }
         }
 
