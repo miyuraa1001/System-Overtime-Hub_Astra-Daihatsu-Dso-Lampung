@@ -2569,18 +2569,18 @@
             };
         }
 
-        function saveAdjustment() {
+        async function saveAdjustment() {
             // Pastikan perhitungan terakhir dieksekusi sebelum simpan
             calculateLiveAdjustment();
-
+        
             if (!currentAdjustTarget || !currentAdjustTarget.computed) return;
-
+        
             const npk = currentAdjustTarget.npk;
             const cabang = document.getElementById('filter-report-cabang').value;
             const bulan = document.getElementById('filter-report-bulan').value;
             const tahun = document.getElementById('filter-report-tahun').value;
             const periodeKey = getCurrentPeriodeKey();
-
+        
             // Mapping rincian durasi per ID transaksi
             const requestsMap = {};
             currentAdjustTarget.requests.forEach((r, i) => {
@@ -2599,7 +2599,7 @@
                     durasiHours: dur
                 };
             });
-
+        
             const comp = currentAdjustTarget.computed;
             adjustmentsMap[npk] = {
                 lembur1: comp.lembur1,
@@ -2608,7 +2608,7 @@
                 lembur4: 0,
                 items: requestsMap
             };
-
+        
             const payload = {
                 periodeKey: periodeKey,
                 cabang: cabang,
@@ -2622,17 +2622,24 @@
                 lembur4: 0,
                 isReset: false
             };
-
+        
             closeAdjustModal();
             renderReportsView();
             showToast(`Penyesuaian jam lembur untuk ${currentAdjustTarget.nama} berhasil disimpan!`, 'success');
-
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withFailureHandler(function(err) {
-                        alert("Gagal sinkronisasi data adjust ke database: " + err.message);
-                    })
-                    .saveAdjustmentRecord(payload);
+        
+            // 🛠️ Menggunakan callServer agar tembus ke backend Google Apps Script lewat Vercel proxy
+            try {
+                const res = await callServer('saveAdjustmentRecord', payload);
+                if (!res || !res.success) {
+                    alert("Gagal sinkronisasi data adjust ke database: " + (res ? res.message : "Kesalahan server"));
+                } else {
+                    if (typeof fetchServerAdjustments === 'function') {
+                        fetchServerAdjustments();
+                    }
+                }
+            } catch (err) {
+                console.error("Error sync adjust:", err);
+                alert("Kesalahan jaringan saat menyimpan adjust.");
             }
         }
 
