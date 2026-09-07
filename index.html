@@ -2464,15 +2464,17 @@
             document.getElementById('adjust-info-gaji').innerText = `Rp ${currentAdjustTarget.gaji.toLocaleString('id-ID')}`;
 
             const tbody = document.getElementById('adjust-log-rows-body');
-            
-            // Ambil data adjust yang tersimpan untuk NPK ini di adjustmentsMap
             const savedAdj = adjustmentsMap[npk];
 
+            console.log("MEMBERBUKA MODAL ADJUST UNTUK NPK:", npk);
+            console.log("DATA SAVED ADJ DI MAP:", savedAdj);
+
             tbody.innerHTML = currentAdjustTarget.requests.map((r, i) => {
-                // 🛠️ Perbaikan di sini: Cek apakah rincian per ID transaksi (r.id) tersimpan di items
                 let valStart = r.jamMulai;
                 let valEnd = r.jamSelesai;
                 let valDur = Number(r.durasiHours || 0);
+
+                console.log(`Cek Item ID [${r.id}]:`, savedAdj && savedAdj.items ? savedAdj.items[r.id] : "Tidak ada items");
 
                 if (savedAdj && savedAdj.items && savedAdj.items[r.id]) {
                     valStart = savedAdj.items[r.id].jamMulai || valStart;
