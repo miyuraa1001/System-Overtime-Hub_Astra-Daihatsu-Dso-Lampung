@@ -2465,11 +2465,11 @@
 
             const tbody = document.getElementById('adjust-log-rows-body');
             
-            // Cek apakah karyawan ini sudah memiliki data adjust tersimpan
+            // Ambil data adjust yang tersimpan untuk NPK ini di adjustmentsMap
             const savedAdj = adjustmentsMap[npk];
 
             tbody.innerHTML = currentAdjustTarget.requests.map((r, i) => {
-                // Ambil jam yang sudah disesuaikan jika ada, jika belum pakai jam asli
+                // 🛠️ Perbaikan di sini: Cek apakah rincian per ID transaksi (r.id) tersimpan di items
                 let valStart = r.jamMulai;
                 let valEnd = r.jamSelesai;
                 let valDur = Number(r.durasiHours || 0);
@@ -2502,7 +2502,7 @@
             calculateLiveAdjustment();
             document.getElementById('adjust-modal').classList.remove('hidden');
         }
-
+        
         function calculateLiveAdjustment() {
             if (!currentAdjustTarget) return;
 
