@@ -2623,13 +2623,16 @@
                 isReset: false
             };
         
+            console.log("MENGIRIM PAYLOAD ADJUST:", payload); // <-- Cek log ini di F12
+        
             closeAdjustModal();
             renderReportsView();
             showToast(`Penyesuaian jam lembur untuk ${currentAdjustTarget.nama} berhasil disimpan!`, 'success');
         
-            // 🛠️ Menggunakan callServer agar tembus ke backend Google Apps Script lewat Vercel proxy
             try {
                 const res = await callServer('saveAdjustmentRecord', payload);
+                console.log("RESPON DARI SERVER ADJUST:", res); // <-- Cek respon ini di F12
+                
                 if (!res || !res.success) {
                     alert("Gagal sinkronisasi data adjust ke database: " + (res ? res.message : "Kesalahan server"));
                 } else {
