@@ -2028,7 +2028,13 @@
                     btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
                 }
             }
-            renderReportsView();
+            
+            // 🛠️ Pastikan data di-fetch ulang dari server saat mode Hasil Adjust diklik
+            if (mode === 'adjust') {
+                fetchServerAdjustments();
+            } else {
+                renderReportsView();
+            }
         }
 
         // ==========================================
