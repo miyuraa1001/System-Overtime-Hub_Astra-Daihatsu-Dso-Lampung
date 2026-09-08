@@ -2416,12 +2416,12 @@
             URL.revokeObjectURL(url);
         }
 
+        // Saat data dari server diterima (di fungsi fetchServerAdjustments)
         async function fetchServerAdjustments() {
             const periodeKey = getCurrentPeriodeKey();
-            // 🛠️ Panggil via callServer
             const res = await callServer('getAdjustmentsByPeriod', { periodeKey: periodeKey });
             if (res && res.success) {
-                adjustmentsMap = res.data || {};
+                adjustmentsMap = res.data || {}; // Pastikan format res.data dari backend ber-key NPK
                 renderReportsView();
             } else {
                 renderReportsView();
