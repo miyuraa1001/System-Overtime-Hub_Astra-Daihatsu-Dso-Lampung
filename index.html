@@ -1997,23 +1997,6 @@
         // ==========================================
         // SAKELAR TAMPILAN VIEW MODE (DIPERBAIKI)
         // ==========================================
-        function switchRekapViewMode(mode) {
-            rekapViewMode = mode;
-            const btnAsli = document.getElementById('btn-view-asli');
-            const btnAdjust = document.getElementById('btn-view-adjust');
-            
-            if (btnAsli && btnAdjust) {
-                if (mode === 'asli') {
-                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold";
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
-                } else {
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold";
-                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
-                }
-            }
-            renderReportsView();
-        }
-
         function switchClaimViewMode(mode) {
             claimViewMode = mode;
             const btnAsli = document.getElementById('btn-claim-view-asli');
@@ -2029,14 +2012,47 @@
                 }
             }
             
-            // 🛠️ Pastikan data di-fetch ulang dari server saat mode Hasil Adjust diklik
-            if (mode === 'adjust') {
-                fetchServerAdjustments();
-            } else {
-                renderReportsView();
-            }
+            // Ambil ulang data dari server agar adjustmentsMap terisi
+            fetchServerAdjustments();
         }
 
+        function switchRekapViewMode(mode) {
+            rekapViewMode = mode;
+            const btnAsli = document.getElementById('btn-view-asli');
+            const btnAdjust = document.getElementById('btn-view-adjust');
+            
+            if (btnAsli && btnAdjust) {
+                if (mode === 'asli') {
+                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold";
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                } else {
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold";
+                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                }
+            }
+            
+            fetchServerAdjustments();
+        }
+        
+        function switchClaimViewMode(mode) {
+            claimViewMode = mode;
+            const btnAsli = document.getElementById('btn-claim-view-asli');
+            const btnAdjust = document.getElementById('btn-claim-view-adjust');
+
+            if (btnAsli && btnAdjust) {
+                if (mode === 'asli') {
+                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold";
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                } else {
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold";
+                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal";
+                }
+            }
+            
+            // Ambil ulang data dari server agar adjustmentsMap terisi
+            fetchServerAdjustments();
+        }
+        
         // ==========================================
         // RENDER LENGKAP REPORTS & PAYROLL
         // ==========================================
