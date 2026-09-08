@@ -2156,74 +2156,77 @@
             }
 
             // 2. RENDER TABEL CLAIM LOG DETAIL HARIAN
-            const headerRow = document.getElementById('table-claim-header-row');
-            if (headerRow) {
-                headerRow.innerHTML = isAdmin ? `
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
-                    <th class="py-3 px-4">Keterangan</th>
-                ` : `
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50">Keterangan</th>
-                    <th class="py-3 px-4 text-center">Status</th>
-                `;
-            }
-
-            const claimTbody = document.getElementById('table-claim-payroll-body');
-            const colSpanCount = isAdmin ? 10 : 11;
-
-            claimTbody.innerHTML = filteredRequests.map((r, idx) => {
-                let dur = Number(r.durasiHours) || 0;
-                
-                // Jika mode adjust aktif dan tanggal/item ini pernah diedit, pakai durasi hasil edit item tersebut
-                if (claimViewMode === 'adjust' && adjustmentsMap[r.npk] && adjustmentsMap[r.npk].items && adjustmentsMap[r.npk].items[r.id]) {
-                    dur = Number(adjustmentsMap[r.npk].items[r.id].durasiHours);
+                const headerRow = document.getElementById('table-claim-header-row');
+                if (headerRow) {
+                    headerRow.innerHTML = isAdmin ? `
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
+                        <th class="py-3 px-4">Keterangan</th>
+                    ` : `
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
+                        <th class="py-3 px-4 border-r border-orange-200/50">Keterangan</th>
+                        <th class="py-3 px-4 text-center">Status</th>
+                    `;
                 }
 
-                const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
-                let l1 = 0;
-                let l2 = 0;
+                const claimTbody = document.getElementById('table-claim-payroll-body');
+                const colSpanCount = isAdmin ? 10 : 11;
 
-                if (isHariLibur) {
-                    l2 = dur;
-                } else {
-                    l1 = Math.min(dur, 1);
-                    l2 = Math.max(0, dur - 1);
-                }
+                claimTbody.innerHTML = filteredRequests.map((r, idx) => {
+                    let dur = Number(r.durasiHours) || 0;
+                    
+                    // 🛠️ Perbaikan Utama: Cek apakah mode 'adjust' aktif dan ada data items tersimpan
+                    if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
+                        const adjData = adjustmentsMap[r.npk];
+                        if (adjData.items && adjData.items[r.id] && adjData.items[r.id].durasiHours !== undefined) {
+                            dur = Number(adjData.items[r.id].durasiHours);
+                        }
+                    }
 
-                const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+                    const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
+                    let l1 = 0;
+                    let l2 = 0;
 
-                return `
-                    <tr class="hover:bg-slate-50 transition-all">
-                        <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                        <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
-                        <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                        <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
-                        <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
-                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
-                    </tr>
-                `;
-            }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+                    if (isHariLibur) {
+                        l2 = dur;
+                    } else {
+                        l1 = Math.min(dur, 1);
+                        l2 = Math.max(0, dur - 1);
+                    }
+
+                    const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition-all">
+                            <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                            <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
+                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                            <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
+                            <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
+                            ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
+                        </tr>
+                    `;
+                }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
         }
 
         // ==========================================
