@@ -2482,11 +2482,12 @@
                 let valEnd = r.jamSelesai;
                 let valDur = Number(r.durasiHours || 0);
 
+                // Simpan jam asli untuk ditampilkan sebagai perbandingan
+                const originalStart = r.jamMulai;
+                const originalEnd = r.jamSelesai;
+
                 if (savedAdj && savedAdj.items) {
-                    // Cek 1: Berdasarkan ID transaksi yang persis sama
                     let matchedItem = savedAdj.items[r.id];
-                    
-                    // Cek 2 (Fallback): Jika ID tidak ketemu, cari berdasarkan tanggal yang sama di dalam items
                     if (!matchedItem) {
                         for (let itemId in savedAdj.items) {
                             if (savedAdj.items[itemId].tanggal === r.tanggal || itemId.includes(r.tanggal)) {
@@ -2508,6 +2509,7 @@
                         <td class="py-2.5 px-3 font-semibold">
                             <div>${r.tanggal}</div>
                             <div class="text-[10px] text-slate-400 font-normal truncate max-w-[150px]">${r.pekerjaan}</div>
+                            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Asli: ${originalStart} - ${originalEnd}</div>
                         </td>
                         <td class="py-2 px-2 text-center">
                             <input type="time" id="adj-start-${i}" value="${valStart}" onchange="calculateLiveAdjustment()" class="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono">
