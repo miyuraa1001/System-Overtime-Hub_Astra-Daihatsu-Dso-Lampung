@@ -2482,12 +2482,25 @@
                 let valEnd = r.jamSelesai;
                 let valDur = Number(r.durasiHours || 0);
 
-                console.log(`Cek Item ID [${r.id}]:`, savedAdj && savedAdj.items ? savedAdj.items[r.id] : "Tidak ada items");
+                if (savedAdj && savedAdj.items) {
+                    // Cek 1: Berdasarkan ID transaksi yang persis sama
+                    let matchedItem = savedAdj.items[r.id];
+                    
+                    // Cek 2 (Fallback): Jika ID tidak ketemu, cari berdasarkan tanggal yang sama di dalam items
+                    if (!matchedItem) {
+                        for (let itemId in savedAdj.items) {
+                            if (savedAdj.items[itemId].tanggal === r.tanggal || itemId.includes(r.tanggal)) {
+                                matchedItem = savedAdj.items[itemId];
+                                break;
+                            }
+                        }
+                    }
 
-                if (savedAdj && savedAdj.items && savedAdj.items[r.id]) {
-                    valStart = savedAdj.items[r.id].jamMulai || valStart;
-                    valEnd = savedAdj.items[r.id].jamSelesai || valEnd;
-                    valDur = Number(savedAdj.items[r.id].durasiHours ?? valDur);
+                    if (matchedItem) {
+                        valStart = matchedItem.jamMulai || valStart;
+                        valEnd = matchedItem.jamSelesai || valEnd;
+                        valDur = Number(matchedItem.durasiHours ?? valDur);
+                    }
                 }
 
                 return `
