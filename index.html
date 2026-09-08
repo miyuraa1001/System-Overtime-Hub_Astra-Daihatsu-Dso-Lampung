@@ -2190,9 +2190,10 @@
                 claimTbody.innerHTML = filteredRequests.map((r, idx) => {
                     let dur = Number(r.durasiHours) || 0;
                     
-                    // 🛠️ Perbaikan Utama: Cek apakah mode 'adjust' aktif dan ada data items tersimpan
+                    // 🛠️ Pastikan pengecekan mode 'adjust' ini aktif dan mengambil data dari items database
                     if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
                         const adjData = adjustmentsMap[r.npk];
+                        // Cek apakah ada penyesuaian jam spesifik untuk ID transaksi ini (r.id)
                         if (adjData.items && adjData.items[r.id] && adjData.items[r.id].durasiHours !== undefined) {
                             dur = Number(adjData.items[r.id].durasiHours);
                         }
