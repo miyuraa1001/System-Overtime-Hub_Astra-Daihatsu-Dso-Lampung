@@ -2153,12 +2153,26 @@
                 claimTbody.innerHTML = filteredRequests.map((r, idx) => {
                     let dur = Number(r.durasiHours) || 0;
                     
-                    // 🛠️ Pastikan pengecekan mode 'adjust' ini aktif dan mengambil data dari items database
+                    // 🛠️ Logika Sinkronisasi Final: Cek apakah mode 'adjust' aktif dan ada data items di adjustmentsMap
                     if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
                         const adjData = adjustmentsMap[r.npk];
-                        // Cek apakah ada penyesuaian jam spesifik untuk ID transaksi ini (r.id)
-                        if (adjData.items && adjData.items[r.id] && adjData.items[r.id].durasiHours !== undefined) {
-                            dur = Number(adjData.items[r.id].durasiHours);
+                        if (adjData.items) {
+                            // Cek berdasarkan ID transaksi yang persis sama
+                            let matchedItem = adjData.items[r.id];
+                            
+                            // Fallback: Jika ID tidak cocok, cari berdasarkan tanggal yang sama
+                            if (!matchedItem) {
+                                for (let itemId in adjData.items) {
+                                    if (adjData.items[itemId].tanggal === r.tanggal || itemId.includes(r.tanggal)) {
+                                        matchedItem = adjData.items[itemId];
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (matchedItem && matchedItem.durasiHours !== undefined) {
+                                dur = Number(matchedItem.durasiHours);
+                            }
                         }
                     }
 
