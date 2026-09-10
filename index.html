@@ -1262,15 +1262,17 @@
         // SINKRONISASI DATA UTAMA DARI SERVER
         // ==========================================
         async function loadAllDataServer() {
-            // 🛠️ GANTI DENGAN CALLSERVER
-            const res = await callServer('getAllOvertimeData');
-            if (res && res.success) {
-                overtimeRequests = res.data || [];
-                renderAllViews();
-                generateDynamicNotifications();
-                fetchKaryawanList();
-            } else {
-                showToast("Gagal memuat data: " + (res ? res.message : "Data kosong"), "error");
+            try {
+                const res = await callServer('getAllOvertimeData');
+                if (res && res.success) {
+                    overtimeRequests = res.data || [];
+                    renderAllViews();
+                    generateDynamicNotifications();
+                } else {
+                    console.warn("Gagal memuat data utama:", res ? res.message : "Respons kosong");
+                }
+            } catch (e) {
+                console.warn("Background sync warning:", e);
             }
         }
 
@@ -2862,17 +2864,20 @@
             }, 3000);
         }
 
-                // ==========================================
+        // ==========================================
         // 7. MANAJEMEN DATA KARYAWAN (ADMIN ONLY)
         // ==========================================
         async function fetchKaryawanList() {
-            // 🛠️ GANTI DENGAN CALLSERVER
-            const res = await callServer('getMasterKaryawanList');
-            if (res && res.success) {
-                karyawanList = res.data || [];
-                renderKaryawanTable();
-            } else {
-                showToast("Gagal muat Master Karyawan: " + (res ? res.message : ""), "error");
+            try {
+                const res = await callServer('getMasterKaryawanList');
+                if (res && res.success) {
+                    karyawanList = res.data || [];
+                    renderKaryawanTable();
+                } else {
+                    console.warn("Gagal memuat master karyawan:", res ? res.message : "Respons kosong");
+                }
+            } catch (e) {
+                console.warn("Karyawan fetch warning:", e);
             }
         }
 
