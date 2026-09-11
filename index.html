@@ -2926,37 +2926,39 @@
             }
         }
 
+        // ==========================================
+        // RENDER TABEL MASTER KARYAWAN (FIXED COLUMN ORDER)
+        // ==========================================
         function renderKaryawanTable() {
             const tbody = document.getElementById('karyawan-table-body');
             const globalSearchInput = document.getElementById('global-search-input');
             const cabangSelect = document.getElementById('filter-karyawan-cabang');
             
-            // Ambil kata kunci dari kolom pencarian header atas
             const query = globalSearchInput ? globalSearchInput.value.toLowerCase().trim() : "";
             const selectedCabang = cabangSelect ? cabangSelect.value.toUpperCase().trim() : "ALL";
-
+        
             const filtered = karyawanList.filter(k => {
                 const matchSearch = (k.nama && k.nama.toLowerCase().includes(query)) ||
                                     (k.npk && k.npk.toString().includes(query)) ||
                                     (k.jabatan && k.jabatan.toLowerCase().includes(query));
-
+        
                 const itemCabang = (k.cabang || "").toString().toUpperCase();
                 const matchCabang = (selectedCabang === "ALL") || itemCabang.includes(selectedCabang);
-
+        
                 return matchSearch && matchCabang;
             });
-
+        
             const badge = document.getElementById('karyawan-total-badge');
             if (badge) badge.innerText = `Total: ${filtered.length} Karyawan`;
-
+        
             if (!tbody) return;
-
+        
             filtered.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
-
+        
             tbody.innerHTML = filtered.map((k, idx) => {
-                // 🛠️ Proteksi ganda pembacaan Gaji Pokok agar tidak bernilai 0 / kosong
+                // Ambil nilai gaji dengan aman dari berbagai kemungkinan nama properti
                 let nominalGaji = Number(k.gaji) || Number(k.Gaji) || Number(k.GAJI) || 0;
-
+        
                 return `
                     <tr class="hover:bg-slate-50 transition-all">
                         <td class="py-3 px-5 text-center font-medium border-r border-slate-100">${idx + 1}</td>
@@ -2984,7 +2986,6 @@
                 `;
             }).join('') || `<tr><td colspan="8" class="text-center py-6 text-slate-400">Tidak ada data karyawan ditemukan.</td></tr>`;
         }
-
         function openKaryawanModal() {
             document.getElementById('karyawan-form').reset();
             document.getElementById('karyawan-is-edit').value = "false";
