@@ -1987,17 +1987,7 @@
         }
 
         // ==========================================
-        // 5. REPORTS / PAYROLL VIEW DENGAN ADJUST JAM
-        // ==========================================
-        function getCurrentPeriodeKey() {
-            const cabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
-            const bulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
-            const tahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
-            return `${cabang}_${bulan}_${tahun}`;
-        }
-        
-        // ==========================================
-        // RENDER LENGKAP REPORTS & PAYROLL
+        // RENDER LENGKAP REPORTS & PAYROLL (FINAL SYNCED)
         // ==========================================
         function renderReportsView() {
             const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
@@ -2005,7 +1995,7 @@
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
             const bulanNama = selectedBulan === 'ALL' ? 'Semua Bulan' : getBulanName(selectedBulan);
-
+        
             // Filter Akurat Tahan Banting (Format Teks/Tanggal/Cabang)
             const filteredRequests = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
@@ -2023,12 +2013,12 @@
                         }
                     }
                 }
-
+        
                 // Pencocokan cabang fleksibel (misal "D660" cocok dengan "D660 - Ahmad Yani")
                 const targetCabang = selectedCabang.toUpperCase();
                 const sheetCabang = (r.cabang || '').toString().toUpperCase();
                 const isCabangMatch = sheetCabang.includes(targetCabang) || targetCabang.includes(sheetCabang);
-
+        
                 if (isAdmin) {
                     const isYearMatch = reqYear ? (reqYear === selectedTahun) : true;
                     const isMonthMatch = (selectedBulan === 'ALL') || (reqMonth === selectedBulan);
@@ -2037,54 +2027,62 @@
                     return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
                 }
             });
-
+        
             // Urutkan berdasarkan NPK terkecil ke terbesar
             filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
-
+        
             if (isAdmin) {
                 const elTitleRekap = document.getElementById('title-rekap-upah');
                 const elTitleClaim = document.getElementById('title-claim-payroll');
                 
-                // Cukup gunakan judul tetap yang bersih karena cabang, bulan, dan tahun sudah jelas ada di dropdown filter atas
                 if (elTitleRekap) elTitleRekap.innerText = "Rekapitulasi Lembur Karyawan";
                 if (elTitleClaim) elTitleClaim.innerText = "Log Rincian Harian Lembur";
             }
-
+        
             // 1. RENDER TABEL REKAPITULASI UPAH
             if (isAdmin) {
                 const rekapTbody = document.getElementById('table-rekapitulasi-body');
                 const rekapTfoot = document.getElementById('table-rekapitulasi-foot');
                 const employeeMap = {};
-
+        
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
                         employeeMap[npkKey] = { nama: r.nama, npk: npkKey, gaji: Number(r.gaji) || 5000000, lembur1: 0, lembur2: 0, lembur3: 0, lembur4: 0 };
                     }
-                    const dur = Number(r.durasiHours) || 0;
+        
+                    // Ambil durasi: jika mode rekap adjust aktif, baca dari adjustmentsMap.items jika ada
+                    let dur = Number(r.durasiHours) || 0;
+                    if (rekapViewMode === 'adjust' && adjustmentsMap[npkKey]) {
+                        const adjData = adjustmentsMap[npkKey];
+                        if (adjData.items && adjData.items[r.id]) {
+                            dur = Number(adjData.items[r.id].durasiHours) || 0;
+                        }
+                    }
+        
+                    // Aturan standar harian: Lembur 1 max 1 jam, sisanya Lembur 2
                     employeeMap[npkKey].lembur1 += Math.min(dur, 1);
                     employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
                 });
-
+        
                 const employeeList = Object.values(employeeMap);
                 employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
-
+        
                 let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
                 rekapTbody.innerHTML = employeeList.map((emp, idx) => {
                     const adj = (rekapViewMode === 'adjust') ? adjustmentsMap[emp.npk] : null;
                     const l1 = adj ? adj.lembur1 : emp.lembur1;
                     const l2 = adj ? adj.lembur2 : emp.lembur2;
-                    const l3 = 0, l4 = 0;
-
+        
                     const totalPoin = (l1 * 1.5) + (l2 * 2.7);
                     const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
-
+        
                     const origPoin = (emp.lembur1 * 1.5) + (emp.lembur2 * 2.7);
                     const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
                     const isAdjusted = !!adjustmentsMap[emp.npk];
-
+        
                     gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
-
+        
                     return `
                         <tr class="hover:bg-slate-50 transition-all ${isAdjusted && rekapViewMode === 'adjust' ? 'bg-amber-50/40' : ''}">
                             <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
@@ -2105,7 +2103,7 @@
                         </tr>
                     `;
                 }).join('') || `<tr><td colspan="11" class="text-center py-6 text-slate-400">Belum ada data rekapitulasi lembur untuk filter ini.</td></tr>`;
-
+        
                 rekapTfoot.innerHTML = employeeList.length > 0 ? `
                     <tr>
                         <td colspan="4" class="py-3.5 px-4 text-center font-bold uppercase border-r border-amber-200">Total Keseluruhan</td>
@@ -2119,98 +2117,75 @@
                     </tr>
                 ` : '';
             }
-
+        
             // 2. RENDER TABEL CLAIM LOG DETAIL HARIAN
-                const headerRow = document.getElementById('table-claim-header-row');
-                if (headerRow) {
-                    headerRow.innerHTML = isAdmin ? `
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
-                        <th class="py-3 px-4">Keterangan</th>
-                    ` : `
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
-                        <th class="py-3 px-4 border-r border-orange-200/50">Keterangan</th>
-                        <th class="py-3 px-4 text-center">Status</th>
-                    `;
+            const headerRow = document.getElementById('table-claim-header-row');
+            if (headerRow) {
+                headerRow.innerHTML = isAdmin ? `
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
+                    <th class="py-3 px-4">Keterangan</th>
+                ` : `
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
+                    <th class="py-3 px-4 border-r border-orange-200/50">Keterangan</th>
+                    <th class="py-3 px-4 text-center">Status</th>
+                `;
+            }
+        
+            const claimTbody = document.getElementById('table-claim-payroll-body');
+            const colSpanCount = isAdmin ? 10 : 11;
+        
+            claimTbody.innerHTML = filteredRequests.map((r, idx) => {
+                let dur = Number(r.durasiHours) || 0;
+                
+                // Cek apakah mode claim adjust aktif dan data item adjust tersedia
+                if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
+                    const adjData = adjustmentsMap[r.npk];
+                    if (adjData.items && adjData.items[r.id]) {
+                        dur = Number(adjData.items[r.id].durasiHours) || 0;
+                    }
                 }
-
-                const claimTbody = document.getElementById('table-claim-payroll-body');
-                const colSpanCount = isAdmin ? 10 : 11;
-
-                claimTbody.innerHTML = filteredRequests.map((r, idx) => {
-                    let dur = Number(r.durasiHours) || 0;
-                    
-                    // 🛠️ Logika Sinkronisasi Final: Cek apakah mode 'adjust' aktif dan ada data items di adjustmentsMap
-                    if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
-                        const adjData = adjustmentsMap[r.npk];
-                        if (adjData.items) {
-                            // Cek berdasarkan ID transaksi yang persis sama
-                            let matchedItem = adjData.items[r.id];
-                            
-                            // Fallback: Jika ID tidak cocok, cari berdasarkan tanggal yang sama
-                            if (!matchedItem) {
-                                for (let itemId in adjData.items) {
-                                    if (adjData.items[itemId].tanggal === r.tanggal || itemId.includes(r.tanggal)) {
-                                        matchedItem = adjData.items[itemId];
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (matchedItem && matchedItem.durasiHours !== undefined) {
-                                dur = Number(matchedItem.durasiHours);
-                            }
-                        }
-                    }
-
-                    const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
-                    let l1 = 0;
-                    let l2 = 0;
-
-                    if (isHariLibur) {
-                        l2 = dur;
-                    } else {
-                        l1 = Math.min(dur, 1);
-                        l2 = Math.max(0, dur - 1);
-                    }
-
-                    const totalPoin = (l1 * 1.5) + (l2 * 2.7);
-
-                    return `
-                        <tr class="hover:bg-slate-50 transition-all">
-                            <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                            <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
-                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                            <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
-                            <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
-                            ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
-                        </tr>
-                    `;
-                }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+                
+                // Aturan standar harian: Lembur 1 max 1 jam, sisanya Lembur 2
+                let l1 = Math.min(dur, 1);
+                let l2 = Math.max(0, dur - 1);
+                const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+        
+                return `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                        <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
+                        <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                        <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
+                        <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
+                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
         }
-
+        
         // ==========================================
-        // EKSPOR EXCEL NATIVE FORMULAS (Diperbarui)
+        // EKSPOR EXCEL NATIVE FORMULAS (FINAL SYNCED)
         // ==========================================
         function exportToExcel(type) {
             const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
@@ -2218,7 +2193,7 @@
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : 'ALL';
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
             const bulanNama = selectedBulan === 'ALL' ? 'Semua_Bulan' : getBulanName(selectedBulan);
-
+        
             const filteredRequests = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
@@ -2245,12 +2220,12 @@
                     return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim() && isApproved;
                 }
             });
-
+        
             // Urutkan berdasarkan NPK terkecil ke terbesar
             filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
             const formatIndoNum = (num) => (Number(num) || 0).toFixed(2).replace('.', ',');
             let tableHTML = '';
-
+        
             if (type === 'rekap_asli' || type === 'rekap_adjust') {
                 const isAdjustMode = (type === 'rekap_adjust');
                 const employeeMap = {};
@@ -2260,18 +2235,23 @@
                     if (!employeeMap[npkKey]) {
                         employeeMap[npkKey] = { nama: r.nama, npk: npkKey, gaji: Number(r.gaji) || 5000000, lembur1: 0, lembur2: 0 };
                     }
-                    const dur = Number(r.durasiHours) || 0;
-                    const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
-
-                    if (isHariLibur) {
-                        employeeMap[npkKey].lembur2 += dur;
-                    } else {
-                        employeeMap[npkKey].lembur1 += Math.min(dur, 1);
-                        employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
+        
+                    // Ambil durasi: jika mode rekap adjust aktif, baca dari adjustmentsMap.items jika ada
+                    let dur = Number(r.durasiHours) || 0;
+                    if (isAdjustMode && adjustmentsMap[npkKey]) {
+                        const adjData = adjustmentsMap[npkKey];
+                        if (adjData.items && adjData.items[r.id]) {
+                            dur = Number(adjData.items[r.id].durasiHours) || 0;
+                        }
                     }
+        
+                    // Aturan standar harian: Lembur 1 max 1 jam, sisanya Lembur 2
+                    employeeMap[npkKey].lembur1 += Math.min(dur, 1);
+                    employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
                 });
+        
                 const employeeList = Object.values(employeeMap);
-                employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));   
+                employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));    
                 
                 const startRow = 4; // Data pertama mulai di baris ke-4
                 const dataRows = employeeList.map((emp, idx) => {
@@ -2283,7 +2263,7 @@
                     // Rumus membaca baris aktif (E4, F4, G4, H4) dan gaji di D4
                     const formulaPoin = `=(E${rowNum}*1,5)+(F${rowNum}*2,7)+(G${rowNum}*3)+(H${rowNum}*4)`;
                     const formulaEstimasi = `=ROUND((D${rowNum}/173)*I${rowNum}; 0)`;
-
+        
                     return `<tr>
                         <td style="text-align:center;">${idx + 1}</td>
                         <td style="text-align:left; font-weight:bold;">${emp.nama}</td>
@@ -2297,7 +2277,7 @@
                         <td style="text-align:right; font-weight:bold; color:#059669; mso-number-format:'Rp\\ #\\,##0';">${formulaEstimasi}</td>
                     </tr>`;
                 }).join('');
-
+        
                 const endRow = startRow + employeeList.length - 1;
                 const totalFooterRow = employeeList.length > 0 ? `
                     <tr style="background-color:#fef3c7; font-weight:bold;">
@@ -2309,7 +2289,7 @@
                         <td style="text-align:center; font-weight:bold; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(I${startRow}:I${endRow})</td>
                         <td style="text-align:right; color:#059669; mso-number-format:'Rp\\ #\\,##0';">=SUM(J${startRow}:J${endRow})</td>
                     </tr>` : '';
-
+        
                 tableHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                     <head><meta charset="utf-8"><style>table{border-collapse:collapse;}th{background:#fef3c7;border:1px solid #d97706;}td{border:1px solid #cbd5e1;}</style></head>
                     <body>
@@ -2319,34 +2299,28 @@
                             <tbody>${dataRows}${totalFooterRow}</tbody>
                         </table>
                     </body></html>`;
-
+        
             } else {
                 // EXPORT CLAIM LOG DETAIL HARIAN
                 const isClaimAdjust = (type === 'claim_adjust');
                 const startRow = 4; // Data pertama berada di baris ke-4 Excel
-
+        
                 const dataRows = filteredRequests.map((r, idx) => {
                     const rowNum = startRow + idx;
                     let dur = Number(r.durasiHours) || 0;
                     
+                    // Ambil durasi adjust jika mode claim_adjust aktif
                     if (isClaimAdjust && adjustmentsMap[r.npk] && adjustmentsMap[r.npk].items && adjustmentsMap[r.npk].items[r.id]) {
-                        dur = Number(adjustmentsMap[r.npk].items[r.id].durasiHours);
+                        dur = Number(adjustmentsMap[r.npk].items[r.id].durasiHours) || 0;
                     }
                     
-                    const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
-                    let l1 = 0;
-                    let l2 = 0;
-
-                    if (isHariLibur) {
-                        l2 = dur;
-                    } else {
-                        l1 = Math.min(dur, 1);
-                        l2 = Math.max(0, dur - 1);
-                    }
-
+                    // Aturan standar harian: Lembur 1 max 1 jam, sisanya Lembur 2
+                    let l1 = Math.min(dur, 1);
+                    let l2 = Math.max(0, dur - 1);
+        
                     // Rumus membaca D4, E4, F4, G4 sesuai baris aktifnya
                     const formulaPoin = `=(D${rowNum}*1,5)+(E${rowNum}*2,7)+(F${rowNum}*3)+(G${rowNum}*4)`;
-
+        
                     return `<tr>
                         <td style="text-align:center;">${idx + 1}</td>
                         <td style="text-align:left; font-weight:bold;">${r.nama}</td>
@@ -2360,7 +2334,7 @@
                         <td style="text-align:left;">${r.pekerjaan}</td>
                     </tr>`;
                 }).join('');
-
+        
                 const endRow = startRow + filteredRequests.length - 1;
                 const totalFooterRow = filteredRequests.length > 0 ? `
                     <tr style="background-color:#ffedd5; font-weight:bold;">
@@ -2372,7 +2346,7 @@
                         <td style="text-align:center; font-weight:bold; mso-number-format:'\\#\\,\\#\\#0\\.00';">=SUM(H${startRow}:H${endRow})</td>
                         <td colspan="2">-</td>
                     </tr>` : '';
-
+        
                 tableHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                     <head><meta charset="utf-8"><style>table{border-collapse:collapse;}th{background:#ffedd5;border:1px solid #ea580c;}td{border:1px solid #cbd5e1;}</style></head>
                     <body>
@@ -2383,7 +2357,7 @@
                         </table>
                     </body></html>`;
             }
-
+        
             const blob = new Blob(['\ufeff', tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
@@ -2394,7 +2368,6 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         }
-
         // ==========================================
         // SAKELAR TAMPILAN VIEW MODE & FETCH ADJUST
         // ==========================================
@@ -2544,64 +2517,62 @@
             document.getElementById('adjust-modal').classList.remove('hidden');
         }
         
+        // ==========================================
+        // KALKULASI LIVE ADJUSTMENT DI MODAL
+        // ==========================================
         function calculateLiveAdjustment() {
             if (!currentAdjustTarget) return;
-
+        
             let totalJam = 0;
             let totalL1 = 0;
             let totalL2 = 0;
-
+        
             currentAdjustTarget.requests.forEach((r, i) => {
                 const jm = document.getElementById(`adj-start-${i}`).value;
                 const js = document.getElementById(`adj-end-${i}`).value;
                 let durasi = 0;
-
+        
                 if (jm && js) {
                     const start = new Date(`2000-01-01T${jm}:00`);
                     let end = new Date(`2000-01-01T${js}:00`);
                     if (end < start) end = new Date(`2000-01-02T${js}:00`);
                     durasi = Math.max(0, (end - start) / (1000 * 60 * 60));
                 }
-
-                // Update teks durasi di baris modal secara langsung
+        
+                // Update teks durasi di baris tabel modal secara real-time
                 const durEl = document.getElementById(`adj-dur-${i}`);
                 if (durEl) durEl.innerText = durasi.toFixed(2).replace('.', ',');
-
+        
                 totalJam += durasi;
-
-                const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
-                if (isHariLibur) {
-                    totalL2 += durasi;
-                } else {
-                    totalL1 += Math.min(durasi, 1);
-                    totalL2 += Math.max(0, durasi - 1);
-                }
+        
+                // Aturan standar harian: Lembur 1 maksimal 1 jam, sisanya masuk Lembur 2
+                totalL1 += Math.min(durasi, 1);
+                totalL2 += Math.max(0, durasi - 1);
             });
-
+        
             const totalPoin = (totalL1 * 1.5) + (totalL2 * 2.7);
             const estimasi = Math.round((currentAdjustTarget.gaji / 173) * totalPoin);
-
+        
+            // Hitung poin asli sebelumnya untuk perbandingan persentase
             let origL1 = 0, origL2 = 0;
             currentAdjustTarget.requests.forEach(r => {
                 const d = Number(r.durasiHours) || 0;
-                const isHariLibur = (r.pekerjaan || '').toString().toLowerCase().includes('libur');
-                if (isHariLibur) {
-                    origL2 += d;
-                } else {
-                    origL1 += Math.min(d, 1);
-                    origL2 += Math.max(0, d - 1);
-                }
+                origL1 += Math.min(d, 1);
+                origL2 += Math.max(0, d - 1);
             });
+            
             const origPoin = (origL1 * 1.5) + (origL2 * 2.7);
             const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
-
+        
+            // Render ke elemen ringkasan di dalam modal
             document.getElementById('adjust-summary-total-jam').innerText = totalJam.toFixed(2).replace('.', ',');
             document.getElementById('adjust-summary-l1').innerText = totalL1.toFixed(2).replace('.', ',');
             document.getElementById('adjust-summary-l2').innerText = totalL2.toFixed(2).replace('.', ',');
             document.getElementById('adjust-summary-poin').innerText = totalPoin.toFixed(2).replace('.', ',');
             document.getElementById('adjust-summary-estimasi').innerText = `Rp ${estimasi.toLocaleString('id-ID')}`;
             document.getElementById('adjust-summary-persen').innerText = `${percent}%`;
-
+        
+            // Simpan hasil komputasi sementara ke objek target
             currentAdjustTarget.computed = {
                 lembur1: totalL1,
                 lembur2: totalL2,
