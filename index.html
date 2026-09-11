@@ -1289,12 +1289,12 @@
 
             const isApproved = r => {
                 const s = (r.status || '').toString().toLowerCase();
-                return s === 'diterima' || s === 'approved';
+                return s === 'Diterima' || s === 'approved';
             };
-            const isPending = r => (r.status || '').toString().toLowerCase() === 'pending';
+            const isPending = r => (r.status || '').toString().toLowerCase() === 'Pending';
             const isRejected = r => {
                 const s = (r.status || '').toString().toLowerCase();
-                return s === 'ditolak' || s === 'rejected';
+                return s === 'Ditolak' || s === 'rejected';
             };
 
             const totalHours = dashboardData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
@@ -1606,10 +1606,10 @@
 
         function getStatusBadge(status) {
             const s = (status || '').toString().toLowerCase();
-            if (s === 'approved' || s === 'diterima') {
+            if (s === 'approved' || s === 'Diterima') {
                 return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-circle-check"></i> Diterima</span>`;
             }
-            if (s === 'rejected' || s === 'ditolak') {
+            if (s === 'rejected' || s === 'Ditolak') {
                 return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-circle-xmark"></i> Ditolak</span>`;
             }
             return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-clock"></i> Pending</span>`;
@@ -1822,7 +1822,7 @@
 
             // Update tampilan lokal sementara
             overtimeRequests.forEach(r => {
-                if ((r.status || '').toString().toLowerCase() === 'pending') {
+                if ((r.status || '').toString().toLowerCase() === 'Pending') {
                     r.status = 'Diterima';
                 }
             });
@@ -1833,7 +1833,7 @@
             const res = await callServer('approveAllPendingOvertime', { ids: pendingIds });
 
             if (res && res.success) {
-                showToast(`${total} pengajuan lembur berhasil diterima!`, 'success');
+                showToast(`${total} pengajuan lembur berhasil Diterima!`, 'success');
                 loadAllDataServer();
             } else {
                 showToast("Gagal memproses Terima Semua: " + (res ? res.message : "Kesalahan server"), "error");
