@@ -2056,25 +2056,31 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        let gajiDariMaster = 0;
-                        if (karyawanList && karyawanList.length > 0) {
+                        // 🛠️ PENGAMAN LAPIS GANDA GAJI (DIJAMIN TIDAK AKAN HILANG / JADI 0)
+                        let gajiPokok = Number(r.gaji) || 0;
+        
+                        if (gajiPokok === 0 && karyawanList && karyawanList.length > 0) {
                             const foundKaryawan = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
                             if (foundKaryawan) {
-                                gajiDariMaster = Number(foundKaryawan.gaji) || 0;
+                                gajiPokok = Number(foundKaryawan.gaji) || 0;
                             }
                         }
-                
+        
+                        if (gajiPokok === 0 && currentUser && currentUser.npk && currentUser.npk.toString().trim() === npkKey) {
+                            gajiPokok = Number(currentUser.gaji) || 0;
+                        }
+        
                         employeeMap[npkKey] = { 
                             nama: r.nama, 
                             npk: npkKey, 
-                            gaji: gajiDariMaster, 
+                            gaji: gajiPokok, 
                             lembur1: 0, 
                             lembur2: 0, 
                             lembur3: 0, 
                             lembur4: 0 
                         };
                     }
-                
+        
                     let dur = Number(r.durasiHours) || 0;
                     
                     // Jika mode rekap adjust aktif, ambil durasi spesifik per baris dari adjustmentsMap.items
@@ -2084,7 +2090,7 @@
                             dur = Number(adjData.items[r.id].durasiHours) || 0;
                         }
                     }
-                
+        
                     // Akumulasikan lembur 1 (maksimal 1 jam per hari) dan lembur 2 (sisanya)
                     employeeMap[npkKey].lembur1 += Math.min(dur, 1);
                     employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
@@ -2098,7 +2104,7 @@
                     const adj = (rekapViewMode === 'adjust') ? adjustmentsMap[emp.npk] : null;
                     let l1 = emp.lembur1;
                     let l2 = emp.lembur2;
-
+        
                     if (adj) {
                         if (adj.lembur1 !== undefined) l1 = Number(adj.lembur1) || 0;
                         if (adj.lembur2 !== undefined) l2 = Number(adj.lembur2) || 0;
@@ -2936,34 +2942,38 @@
 
             if (!tbody) return;
 
-            // Tambahkan baris sort ini:
             filtered.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
 
-            tbody.innerHTML = filtered.map((k, idx) => `
-                <tr class="hover:bg-slate-50 transition-all">
-                    <td class="py-3 px-5 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                    <td class="py-3 px-5 font-mono font-bold text-slate-900 border-r border-slate-100">${k.npk}</td>
-                    <td class="py-3 px-5 font-bold border-r border-slate-100">${k.nama}</td>
-                    <td class="py-3 px-5 border-r border-slate-100">${k.cabang}</td>
-                    <td class="py-3 px-5 border-r border-slate-100">${k.jabatan}</td>
-                    <td class="py-3 px-5 text-right font-mono border-r border-slate-100">Rp ${Number(k.gaji || 0).toLocaleString('id-ID')}</td>
-                    <td class="py-3 px-5 text-center border-r border-slate-100">
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${k.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}">
-                            ${(k.role || 'user').toUpperCase()}
-                        </span>
-                    </td>
-                    <td class="py-3 px-5 text-center">
-                        <div class="flex items-center justify-center gap-2">
-                            <button onclick="openEditKaryawanModal('${k.npk}')" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all" title="Edit Karyawan">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onclick="handleDeleteKaryawan('${k.npk}', '${k.nama.replace(/'/g, "\\'")}')" class="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all" title="Hapus Karyawan">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('') || `<tr><td colspan="8" class="text-center py-6 text-slate-400">Tidak ada data karyawan ditemukan.</td></tr>`;
+            tbody.innerHTML = filtered.map((k, idx) => {
+                // 🛠️ Proteksi ganda pembacaan Gaji Pokok agar tidak bernilai 0 / kosong
+                let nominalGaji = Number(k.gaji) || Number(k.Gaji) || Number(k.GAJI) || 0;
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-5 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                        <td class="py-3 px-5 font-mono font-bold text-slate-900 border-r border-slate-100">${k.npk}</td>
+                        <td class="py-3 px-5 font-bold border-r border-slate-100">${k.nama}</td>
+                        <td class="py-3 px-5 border-r border-slate-100">${k.cabang}</td>
+                        <td class="py-3 px-5 border-r border-slate-100">${k.jabatan}</td>
+                        <td class="py-3 px-5 text-right font-mono border-r border-slate-100">Rp ${nominalGaji.toLocaleString('id-ID')}</td>
+                        <td class="py-3 px-5 text-center border-r border-slate-100">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${k.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}">
+                                ${(k.role || 'user').toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="py-3 px-5 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="openEditKaryawanModal('${k.npk}')" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all" title="Edit Karyawan">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="handleDeleteKaryawan('${k.npk}', '${k.nama.replace(/'/g, "\\'")}')" class="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all" title="Hapus Karyawan">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="8" class="text-center py-6 text-slate-400">Tidak ada data karyawan ditemukan.</td></tr>`;
         }
 
         function openKaryawanModal() {
