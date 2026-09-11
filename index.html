@@ -2086,8 +2086,13 @@
                 let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
                 rekapTbody.innerHTML = employeeList.map((emp, idx) => {
                     const adj = (rekapViewMode === 'adjust') ? adjustmentsMap[emp.npk] : null;
-                    const l1 = adj ? adj.lembur1 : emp.lembur1;
-                    const l2 = adj ? adj.lembur2 : emp.lembur2;
+                    let l1 = emp.lembur1;
+                    let l2 = emp.lembur2;
+
+                    if (adj) {
+                        if (adj.lembur1 !== undefined) l1 = Number(adj.lembur1) || 0;
+                        if (adj.lembur2 !== undefined) l2 = Number(adj.lembur2) || 0;
+                    }
         
                     const totalPoin = (l1 * 1.5) + (l2 * 2.7);
                     const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
