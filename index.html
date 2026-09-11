@@ -2000,16 +2000,27 @@
         }
 
         // ==========================================
-        // RENDER LENGKAP REPORTS & PAYROLL (FINAL SYNCED)
+        // RENDER LENGKAP REPORTS & PAYROLL (WITH AUTO-FETCH GUARD)
         // ==========================================
-        function renderReportsView() {
+        async function renderReportsView() {
+            // Pengaman darurat: Jika karyawanList masih kosong, tarik data langsung secara otomatis
+            if (!karyawanList || karyawanList.length === 0) {
+                try {
+                    const resKaryawan = await callServer('getMasterKaryawanList');
+                    if (resKaryawan && resKaryawan.success) {
+                        karyawanList = resKaryawan.data || [];
+                    }
+                } catch (err) {
+                    console.error("Gagal auto-fetch karyawan:", err);
+                }
+            }
+        
             const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
             const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
             const bulanNama = selectedBulan === 'ALL' ? 'Semua Bulan' : getBulanName(selectedBulan);
         
-            // Filter Akurat Tahan Banting (Format Teks/Tanggal/Cabang)
             const filteredRequests = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
@@ -2057,9 +2068,9 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        // 🛠️ AMBIL GAJI POKOK MURNI DARI DATABASE MASTER KARYAWAN
+                        // Cari Gaji dari Master Karyawan
                         let gajiDariMaster = 0;
-                        if (typeof karyawanList !== 'undefined' && karyawanList.length > 0) {
+                        if (karyawanList && karyawanList.length > 0) {
                             const foundKaryawan = karyawanList.find(k => k.npk.toString().trim() === npkKey);
                             if (foundKaryawan) {
                                 gajiDariMaster = Number(foundKaryawan.gaji) || 0;
@@ -2881,14 +2892,25 @@
         async function fetchKaryawanList() {
             try {
                 const res = await callServer('getMasterKaryawanList');
-                if (res && res.success) {
+                if (res && res.success && res.data && res.data.length > 0) {
                     karyawanList = res.data || [];
                     renderKaryawanTable();
                 } else {
-                    console.warn("Gagal memuat master karyawan:", res ? res.message : "Respons kosong");
+                    console.warn("API Master Karyawan kosong/gagal, menggunakan fallback sesi lokal.");
+                    // 🛠️ Fallback pengaman: Jika fetch gagal, ambil dari data user yang sedang login atau localStorage
+                    if (currentUser && currentUser.npk) {
+                        karyawanList = [{
+                            npk: currentUser.npk,
+                            nama: currentUser.nama,
+                            gaji: currentUser.gaji || 5332000,
+                            cabang: currentUser.cabang,
+                            jabatan: currentUser.jabatan,
+                            role: currentUser.role
+                        }];
+                    }
                 }
             } catch (e) {
-                console.warn("Karyawan fetch warning:", e);
+                console.warn("Karyawan fetch error, menggunakan data cadangan:", e);
             }
         }
 
