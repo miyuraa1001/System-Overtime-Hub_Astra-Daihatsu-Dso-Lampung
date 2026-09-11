@@ -2053,7 +2053,24 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        employeeMap[npkKey] = { nama: r.nama, npk: npkKey, gaji: Number(r.gaji) || 5000000, lembur1: 0, lembur2: 0, lembur3: 0, lembur4: 0 };
+                        // Ambil Gaji Pokok murni dari Master Karyawan berdasarkan NPK
+                        let gajiDariMaster = 0;
+                        if (typeof karyawanList !== 'undefined' && karyawanList.length > 0) {
+                            const foundKaryawan = karyawanList.find(k => k.npk.toString().trim() === npkKey);
+                            if (foundKaryawan) {
+                                gajiDariMaster = Number(foundKaryawan.gaji) || 0;
+                            }
+                        }
+        
+                        employeeMap[npkKey] = { 
+                            nama: r.nama, 
+                            npk: npkKey, 
+                            gaji: gajiDariMaster, 
+                            lembur1: 0, 
+                            lembur2: 0, 
+                            lembur3: 0, 
+                            lembur4: 0 
+                        };
                     }
         
                     // Ambil durasi: jika mode rekap adjust aktif, baca dari adjustmentsMap.items jika ada
@@ -2433,7 +2450,7 @@
             const selectedCabang = document.getElementById('filter-report-cabang').value;
             const selectedBulan = document.getElementById('filter-report-bulan').value;
             const selectedTahun = document.getElementById('filter-report-tahun').value;
-
+        
             const userReqs = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
@@ -2446,40 +2463,50 @@
                 const isCabangMatch = (r.cabang || '').toUpperCase().includes(selectedCabang.toUpperCase());
                 return ((r.npk || '').toString().trim() === npk.toString().trim()) && isCabangMatch && (reqYear === selectedTahun) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
             });
-
+        
             if (userReqs.length === 0) {
                 showToast("Tidak ada data lembur yang dapat disesuaikan untuk karyawan ini.", "info");
                 return;
             }
-
+        
             const empSample = userReqs[0];
+            
+            // 🛠️ Tarik Gaji Murni dari Database Master Karyawan Secara Real-Time
+            let gajiReal = Number(empSample.gaji) || 0;
+            if (typeof karyawanList !== 'undefined' && karyawanList.length > 0) {
+                const foundMaster = karyawanList.find(k => k.npk.toString().trim() === npk.toString().trim());
+                if (foundMaster && foundMaster.gaji) {
+                    gajiReal = Number(foundMaster.gaji) || 0;
+                }
+            }
+        
             currentAdjustTarget = {
                 npk: npk,
                 nama: empSample.nama,
-                gaji: Number(empSample.gaji) || 5000000,
+                gaji: gajiReal, // Terintegrasi langsung dengan database Master_Karyawan
                 requests: JSON.parse(JSON.stringify(userReqs))
             };
-
+        
             document.getElementById('adjust-npk').value = npk;
             document.getElementById('adjust-info-nama').innerText = currentAdjustTarget.nama;
             document.getElementById('adjust-info-npk').innerText = npk;
             document.getElementById('adjust-info-gaji').innerText = `Rp ${currentAdjustTarget.gaji.toLocaleString('id-ID')}`;
-
+        
             const tbody = document.getElementById('adjust-log-rows-body');
             const savedAdj = adjustmentsMap[npk];
-
+        
             console.log("MEMBERBUKA MODAL ADJUST UNTUK NPK:", npk);
             console.log("DATA SAVED ADJ DI MAP:", savedAdj);
-
+        
             tbody.innerHTML = currentAdjustTarget.requests.map((r, i) => {
                 let valStart = r.jamMulai;
                 let valEnd = r.jamSelesai;
                 let valDur = Number(r.durasiHours || 0);
-
+        
                 // Simpan jam asli untuk ditampilkan sebagai perbandingan
                 const originalStart = r.jamMulai;
                 const originalEnd = r.jamSelesai;
-
+        
                 if (savedAdj && savedAdj.items) {
                     let matchedItem = savedAdj.items[r.id];
                     if (!matchedItem) {
@@ -2490,14 +2517,14 @@
                             }
                         }
                     }
-
+        
                     if (matchedItem) {
                         valStart = matchedItem.jamMulai || valStart;
                         valEnd = matchedItem.jamSelesai || valEnd;
                         valDur = Number(matchedItem.durasiHours ?? valDur);
                     }
                 }
-
+        
                 return `
                     <tr class="hover:bg-slate-50 transition-all">
                         <td class="py-2.5 px-3 font-semibold">
@@ -2517,7 +2544,7 @@
                     </tr>
                 `;
             }).join('');
-
+        
             calculateLiveAdjustment();
             document.getElementById('adjust-modal').classList.remove('hidden');
         }
