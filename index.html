@@ -2056,26 +2056,36 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        // 🛠️ Langsung ambil r.gaji yang sudah disinkronkan dari backend database!
+                        let gajiDariMaster = 0;
+                        if (karyawanList && karyawanList.length > 0) {
+                            const foundKaryawan = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
+                            if (foundKaryawan) {
+                                gajiDariMaster = Number(foundKaryawan.gaji) || 0;
+                            }
+                        }
+                
                         employeeMap[npkKey] = { 
                             nama: r.nama, 
                             npk: npkKey, 
-                            gaji: Number(r.gaji) || 0, 
+                            gaji: gajiDariMaster, 
                             lembur1: 0, 
                             lembur2: 0, 
                             lembur3: 0, 
                             lembur4: 0 
                         };
                     }
-        
+                
                     let dur = Number(r.durasiHours) || 0;
+                    
+                    // Jika mode rekap adjust aktif, ambil durasi spesifik per baris dari adjustmentsMap.items
                     if (rekapViewMode === 'adjust' && adjustmentsMap[npkKey]) {
                         const adjData = adjustmentsMap[npkKey];
                         if (adjData.items && adjData.items[r.id]) {
                             dur = Number(adjData.items[r.id].durasiHours) || 0;
                         }
                     }
-        
+                
+                    // Akumulasikan lembur 1 (maksimal 1 jam per hari) dan lembur 2 (sisanya)
                     employeeMap[npkKey].lembur1 += Math.min(dur, 1);
                     employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
                 });
