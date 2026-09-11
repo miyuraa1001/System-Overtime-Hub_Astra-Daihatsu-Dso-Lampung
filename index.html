@@ -2113,8 +2113,17 @@
                     const totalPoin = (l1 * 1.5) + (l2 * 2.7);
                     const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
         
-                    const origPoin = (emp.lembur1 * 1.5) + (emp.lembur2 * 2.7);
-                    const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
+                    // Hitung poin asli berdasarkan data mentah (r.durasiHours) milik karyawan ini saja
+                    let empOrigPoin = 0;
+                    filteredRequests.filter(item => item.npk.toString().trim() === emp.npk.toString().trim()).forEach(item => {
+                        const d = Number(item.durasiHours) || 0;
+                        const oL1 = Math.min(d, 1);
+                        const oL2 = Math.max(0, d - 1);
+                        empOrigPoin += (oL1 * 1.5) + (oL2 * 2.7);
+                    });
+        
+                    // Persentase akurat untuk tombol Adjust di tabel
+                    const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
                     const isAdjusted = !!adjustmentsMap[emp.npk];
         
                     gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
