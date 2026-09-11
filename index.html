@@ -1263,14 +1263,22 @@
         // ==========================================
         async function loadAllDataServer() {
             try {
-                const res = await callServer('getAllOvertimeData');
-                if (res && res.success) {
-                    overtimeRequests = res.data || [];
-                    renderAllViews();
-                    generateDynamicNotifications();
-                } else {
-                    console.warn("Gagal memuat data utama:", res ? res.message : "Respons kosong");
+                // Tarik data lembur dan data master karyawan secara bersamaan agar sinkron real-time
+                const [resOvertime, resKaryawan] = await Promise.all([
+                    callServer('getAllOvertimeData'),
+                    callServer('getMasterKaryawanList')
+                ]);
+        
+                if (resOvertime && resOvertime.success) {
+                    overtimeRequests = resOvertime.data || [];
                 }
+                
+                if (resKaryawan && resKaryawan.success) {
+                    karyawanList = resKaryawan.data || [];
+                }
+        
+                renderAllViews();
+                generateDynamicNotifications();
             } catch (e) {
                 console.warn("Background sync warning:", e);
             }
