@@ -1289,12 +1289,17 @@
 
             const isApproved = r => {
                 const s = (r.status || '').toString().toLowerCase();
-                return s === 'Diterima' || s === 'approved';
+                return s === 'diterima' || s === 'approved';
             };
-            const isPending = r => (r.status || '').toString().toLowerCase() === 'Pending';
+            
+            const isPending = r => {
+                const s = (r.status || '').toString().toLowerCase();
+                return s === 'pending';
+            };
+            
             const isRejected = r => {
                 const s = (r.status || '').toString().toLowerCase();
-                return s === 'Ditolak' || s === 'rejected';
+                return s === 'ditolak' || s === 'rejected';
             };
 
             const totalHours = dashboardData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
@@ -1606,10 +1611,10 @@
 
         function getStatusBadge(status) {
             const s = (status || '').toString().toLowerCase();
-            if (s === 'approved' || s === 'Diterima') {
+            if (s === 'approved' || s === 'diterima') {
                 return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-circle-check"></i> Diterima</span>`;
             }
-            if (s === 'rejected' || s === 'Ditolak') {
+            if (s === 'rejected' || s === 'ditolak') {
                 return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-circle-xmark"></i> Ditolak</span>`;
             }
             return `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 font-bold text-[10px] rounded-full"><i class="fa-solid fa-clock"></i> Pending</span>`;
