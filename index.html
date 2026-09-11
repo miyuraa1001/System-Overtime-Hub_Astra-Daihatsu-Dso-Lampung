@@ -2618,7 +2618,7 @@
         
             if (!currentAdjustTarget || !currentAdjustTarget.computed) return;
         
-            const npk = currentAdjustTarget.npk;
+            const npk = currentAdjustTarget.npk.toString().trim();
             const cabang = document.getElementById('filter-report-cabang').value;
             const bulan = document.getElementById('filter-report-bulan').value;
             const tahun = document.getElementById('filter-report-tahun').value;
@@ -2637,6 +2637,8 @@
                     dur = Math.max(0, (end - start) / (1000 * 60 * 60));
                 }
                 requestsMap[r.id] = {
+                    id: r.id,
+                    tanggal: r.tanggal,
                     jamMulai: jm,
                     jamSelesai: js,
                     durasiHours: dur
@@ -2644,6 +2646,8 @@
             });
         
             const comp = currentAdjustTarget.computed;
+        
+            // 🛠️ UPDATE VARIABEL LOKAL SECARA LANGSUNG (INSTANT SYNC)
             adjustmentsMap[npk] = {
                 lembur1: comp.lembur1,
                 lembur2: comp.lembur2,
@@ -2663,33 +2667,31 @@
                 lembur2: comp.lembur2,
                 lembur3: 0,
                 lembur4: 0,
-                items: requestsMap, // <-- Pastikan items ini ikut dikirim
+                items: requestsMap,
                 isReset: false
             };
         
-            console.log("MENGIRIM PAYLOAD ADJUST:", payload); // <-- Cek log ini di F12
-        
             closeAdjustModal();
+            
+            // Langsung render ulang tabel agar angka berubah seketika di layar
             renderReportsView();
             showToast(`Penyesuaian jam lembur untuk ${currentAdjustTarget.nama} berhasil disimpan!`, 'success');
         
             try {
                 const res = await callServer('saveAdjustmentRecord', payload);
-                console.log("RESPON DARI SERVER ADJUST:", res); // <-- Cek respon ini di F12
-                
                 if (!res || !res.success) {
-                    alert("Gagal sinkronisasi data adjust ke database: " + (res ? res.message : "Kesalahan server"));
+                    console.warn("Gagal sinkronisasi background adjust:", res ? res.message : "Server error");
                 } else {
+                    // Panggil ulang fetch server di latar belakang untuk memastikan konsistensi database
                     if (typeof fetchServerAdjustments === 'function') {
                         fetchServerAdjustments();
                     }
                 }
             } catch (err) {
-                console.error("Error sync adjust:", err);
-                alert("Kesalahan jaringan saat menyimpan adjust.");
+                console.error("Error jaringan saat menyimpan adjust:", err);
             }
         }
-
+        
         async function resetAdjustment() {
             if (!currentAdjustTarget) return;
 
