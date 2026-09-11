@@ -2390,6 +2390,14 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         }
+        
+        function getCurrentPeriodeKey() {
+            const cabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
+            const bulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
+            const tahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
+            return `${cabang}_${bulan}_${tahun}`;
+        }
+        
         // ==========================================
         // SAKELAR TAMPILAN VIEW MODE & FETCH ADJUST
         // ==========================================
