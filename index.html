@@ -1263,7 +1263,7 @@
         // ==========================================
         async function loadAllDataServer() {
             try {
-                // Tarik data lembur dan data master karyawan secara bersamaan agar sinkron real-time
+                // Tarik data lembur dan data master karyawan secara bersamaan dan real-time
                 const [resOvertime, resKaryawan] = await Promise.all([
                     callServer('getAllOvertimeData'),
                     callServer('getMasterKaryawanList')
@@ -2014,7 +2014,6 @@
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
                     const tStr = r.tanggal.toString().trim();
-                    // Mendukung format YYYY-MM-DD maupun DD/MM/YYYY
                     const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
                     if (parts.length === 3) {
                         if (parts[0].length === 4) {
@@ -2027,7 +2026,6 @@
                     }
                 }
         
-                // Pencocokan cabang fleksibel (misal "D660" cocok dengan "D660 - Ahmad Yani")
                 const targetCabang = selectedCabang.toUpperCase();
                 const sheetCabang = (r.cabang || '').toString().toUpperCase();
                 const isCabangMatch = sheetCabang.includes(targetCabang) || targetCabang.includes(sheetCabang);
@@ -2041,13 +2039,11 @@
                 }
             });
         
-            // Urutkan berdasarkan NPK terkecil ke terbesar
             filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
         
             if (isAdmin) {
                 const elTitleRekap = document.getElementById('title-rekap-upah');
                 const elTitleClaim = document.getElementById('title-claim-payroll');
-                
                 if (elTitleRekap) elTitleRekap.innerText = "Rekapitulasi Lembur Karyawan";
                 if (elTitleClaim) elTitleClaim.innerText = "Log Rincian Harian Lembur";
             }
@@ -2061,7 +2057,7 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        // Ambil Gaji Pokok murni dari Master Karyawan berdasarkan NPK
+                        // 🛠️ AMBIL GAJI POKOK MURNI DARI DATABASE MASTER KARYAWAN
                         let gajiDariMaster = 0;
                         if (typeof karyawanList !== 'undefined' && karyawanList.length > 0) {
                             const foundKaryawan = karyawanList.find(k => k.npk.toString().trim() === npkKey);
@@ -2081,7 +2077,6 @@
                         };
                     }
         
-                    // Ambil durasi: jika mode rekap adjust aktif, baca dari adjustmentsMap.items jika ada
                     let dur = Number(r.durasiHours) || 0;
                     if (rekapViewMode === 'adjust' && adjustmentsMap[npkKey]) {
                         const adjData = adjustmentsMap[npkKey];
@@ -2090,7 +2085,6 @@
                         }
                     }
         
-                    // Aturan standar harian: Lembur 1 max 1 jam, sisanya Lembur 2
                     employeeMap[npkKey].lembur1 += Math.min(dur, 1);
                     employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
                 });
@@ -2183,7 +2177,6 @@
             claimTbody.innerHTML = filteredRequests.map((r, idx) => {
                 let dur = Number(r.durasiHours) || 0;
                 
-                // Cek apakah mode claim adjust aktif dan data item adjust tersedia
                 if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
                     const adjData = adjustmentsMap[r.npk];
                     if (adjData.items && adjData.items[r.id]) {
@@ -2191,7 +2184,6 @@
                     }
                 }
                 
-                // Aturan standar harian: Lembur 1 max 1 jam, sisanya Lembur 2
                 let l1 = Math.min(dur, 1);
                 let l2 = Math.max(0, dur - 1);
                 const totalPoin = (l1 * 1.5) + (l2 * 2.7);
@@ -2208,7 +2200,7 @@
                         <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
                         <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
                         <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
-                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
+                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}`}
                     </tr>
                 `;
             }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
