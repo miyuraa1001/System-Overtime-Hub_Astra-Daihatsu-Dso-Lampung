@@ -2000,21 +2000,9 @@
         }
 
         // ==========================================
-        // RENDER LENGKAP REPORTS & PAYROLL (WITH AUTO-FETCH GUARD)
+        // RENDER LENGKAP REPORTS & PAYROLL (CLEAN & SYNCED)
         // ==========================================
-        async function renderReportsView() {
-            // Pengaman darurat: Jika karyawanList masih kosong, tarik data langsung secara otomatis
-            if (!karyawanList || karyawanList.length === 0) {
-                try {
-                    const resKaryawan = await callServer('getMasterKaryawanList');
-                    if (resKaryawan && resKaryawan.success) {
-                        karyawanList = resKaryawan.data || [];
-                    }
-                } catch (err) {
-                    console.error("Gagal auto-fetch karyawan:", err);
-                }
-            }
-        
+        function renderReportsView() {
             const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
             const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
@@ -2068,19 +2056,11 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        // Cari Gaji dari Master Karyawan
-                        let gajiDariMaster = 0;
-                        if (karyawanList && karyawanList.length > 0) {
-                            const foundKaryawan = karyawanList.find(k => k.npk.toString().trim() === npkKey);
-                            if (foundKaryawan) {
-                                gajiDariMaster = Number(foundKaryawan.gaji) || 0;
-                            }
-                        }
-        
+                        // 🛠️ Langsung ambil r.gaji yang sudah disinkronkan dari backend database!
                         employeeMap[npkKey] = { 
                             nama: r.nama, 
                             npk: npkKey, 
-                            gaji: gajiDariMaster, 
+                            gaji: Number(r.gaji) || 0, 
                             lembur1: 0, 
                             lembur2: 0, 
                             lembur3: 0, 
@@ -2211,7 +2191,7 @@
                         <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
                         <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
                         <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
-                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}`}
+                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
                     </tr>
                 `;
             }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
