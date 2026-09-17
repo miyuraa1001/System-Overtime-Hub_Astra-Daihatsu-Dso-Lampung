@@ -3261,75 +3261,57 @@
         
         function renderClockFace() {
             const face = document.getElementById('clock-face');
-            // Hapus angka lama kecuali jarum
-            const existingNumbers = face.querySelectorAll('.clock-number');
-            existingNumbers.forEach(n => n.remove());
+            if (!face) return;
+            face.innerHTML = '';
         
-            const radius = 95; // Jarak dari pusat
-            const innerRadius = 60; // Untuk jam 13-23 di dalam
+            // 🛡️ DEFINISIKAN TITIK TENGAH DAN RADIUS DI SINI
+            const width = face.clientWidth || 220;
+            const height = face.clientHeight || 220;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = (width / 2) - 25; // Jarak dari pinggir lingkaran
         
             if (clockMode === 'jam') {
-                // Render Jam 1-12 (Lingkaran Luar) & 13-23, 00 (Lingkaran Dalam)
-                const hoursOuter = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-                const hoursInner = [0, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
-        
-                hoursOuter.forEach((hr, index) => {
+                const hours = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+                hours.forEach((h, index) => {
                     const angle = (index * 30) * (Math.PI / 180);
-                    const x = Math.sin(angle) * radius;
-                    const y = -Math.cos(angle) * radius;
+                    const x = centerX + radius * Math.sin(angle) - 16;
+                    const y = centerY - radius * Math.cos(angle) - 16;
         
-                    const div = document.createElement('div');
-                    div.className = `clock-number absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer transition-all ${parseInt(selectedHourVal) === hr ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-700'}`;
-                    div.style.transform = `translate(${x}px, ${y}px)`;
-                    div.innerText = hr;
-                    div.onclick = () => {
-                        selectedHourVal = hr.toString().padStart(2, '0');
-                        renderClockFace();
+                    const numDiv = document.createElement('div');
+                    numDiv.className = `clock-num absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer transition-all ${selectedHourVal === h ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-700 text-slate-300'}`;
+                    numDiv.style.left = `${x}px`;
+                    numDiv.style.top = `${y}px`;
+                    numDiv.innerText = h;
+        
+                    numDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        selectedHourVal = h;
                         updateClockDisplay();
-                    };
-                    face.appendChild(div);
-                });
-        
-                hoursInner.forEach((hr, index) => {
-                    const angle = (index * 30) * (Math.PI / 180);
-                    const x = Math.sin(angle) * innerRadius;
-                    const y = -Math.cos(angle) * innerRadius;
-        
-                    const div = document.createElement('div');
-                    div.className = `clock-number absolute w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold cursor-pointer transition-all ${parseInt(selectedHourVal) === hr ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`;
-                    div.style.transform = `translate(${x}px, ${y}px)`;
-                    div.innerText = hr === 0 ? '00' : hr;
-                    div.onclick = () => {
-                        selectedHourVal = hr.toString().padStart(2, '0');
                         renderClockFace();
-                        updateClockDisplay();
                     };
-                    face.appendChild(div);
+                    face.appendChild(numDiv);
                 });
-        
             } else {
-                // Membuat array otomatis dari "00" sampai "59"
+                // MODE MENIT (00 sampai 59)
                 const minutes = [];
                 for (let m = 0; m < 60; m++) {
                     minutes.push(m < 10 ? `0${m}` : `${m}`);
                 }
-            
-                // Sesuaikan radius lingkaran menit agar sedikit ke dalam (misal: radius 92px)
-                const minuteRadius = radius - 6; 
-            
+        
+                const minuteRadius = radius - 4;
+        
                 minutes.forEach((m, index) => {
-                    // Sudut per angka untuk 60 item adalah 6 derajat (360 / 60)
                     const angle = (index * 6) * (Math.PI / 180);
-                    const x = centerX + minuteRadius * Math.sin(angle) - 10; // offset setengah lebar elemen
-                    const y = centerY - minuteRadius * Math.cos(angle) - 10; // offset setengah tinggi elemen
-            
+                    const x = centerX + minuteRadius * Math.sin(angle) - 10;
+                    const y = centerY - minuteRadius * Math.cos(angle) - 10;
+        
                     const numDiv = document.createElement('div');
-                    // Ukuran diperkecil jadi w-5 h-5 (20px) dan teks 8px agar 60 angka muat melingkar sempurna
                     numDiv.className = `clock-num absolute w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold cursor-pointer transition-all ${selectedMinuteVal === m ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-700 text-slate-300'}`;
                     numDiv.style.left = `${x}px`;
                     numDiv.style.top = `${y}px`;
                     numDiv.innerText = m;
-            
+        
                     numDiv.onclick = (e) => {
                         e.stopPropagation();
                         selectedMinuteVal = m;
