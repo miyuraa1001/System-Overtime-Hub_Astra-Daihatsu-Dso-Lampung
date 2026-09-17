@@ -1920,24 +1920,24 @@
                 alert("Harap pilih Cabang dan Jenis Pekerjaan!");
                 return;
             }
-
+        
             let pekerjaanVal = selectedPekerjaan.value;
             if (pekerjaanVal === "Yang lain") {
                 const customInput = document.getElementById('form-pekerjaan-custom');
                 pekerjaanVal = customInput && customInput.value.trim() ? customInput.value.trim() : "Pekerjaan Lainnya";
             }
-
+        
             const tanggalVal = document.getElementById('form-tanggal').value;
             const jamMulaiVal = document.getElementById('form-jam-mulai').value;
             const jamSelesaiVal = document.getElementById('form-jam-selesai').value;
             const npkVal = document.getElementById('form-npk').value.trim();
             const durasiVal = calculateFormDuration() || 0;
-
+        
             if (!tanggalVal || !jamMulaiVal || !jamSelesaiVal || !npkVal) {
                 alert("Harap lengkapi semua data formulir lembur!");
                 return;
             }
-
+        
             const payload = {
                 cabang: selectedCabang.value,
                 npk: npkVal,
@@ -1947,15 +1947,15 @@
                 durasiHours: durasiVal,
                 pekerjaan: pekerjaanVal
             };
-
+        
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim Pengajuan...';
             }
-
-            // 🛠️ Panggil via callServer
+        
+            // Langsung panggil callServer tanpa fungsi perantara yang sering bikin error scope
             const res = await callServer('submitOvertimeRequest', payload);
-
+        
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
