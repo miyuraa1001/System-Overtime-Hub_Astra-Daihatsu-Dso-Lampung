@@ -1105,21 +1105,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.addEventListener('click', function(e) {
-                if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'time') {
-                    if (typeof e.target.showPicker === 'function') {
-                        try {
-                            e.target.showPicker();
-                        } catch (err) {
-                            // Aman diabaikan jika browser tidak mendukung
-                        }
-                    }
-                });
-            });
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- 1. Tangkap parameter URL dengan aman (untuk fitur auto-login jika ada) ---
+            // --- 1. Tangkap parameter URL dengan aman ---
             const urlParams = new URLSearchParams(window.location.search);
             const urlUser = urlParams.get('username');
             const urlPass = urlParams.get('password');
@@ -1132,6 +1118,19 @@
                     passInput.value = urlPass;
                 }
             }
+    
+            // --- 2. Time picker universal yang aman dari error F12 ---
+            document.addEventListener('click', function(e) {
+                const timeInput = e.target.closest('input[type="time"]');
+                if (timeInput && typeof timeInput.showPicker === 'function') {
+                    try {
+                        timeInput.showPicker();
+                    } catch (err) {
+                        // Diabaikan jika browser membatasi
+                    }
+                }
+            });
+        });
     
             // --- 2. Kode pemilih waktu (time picker) universal yang kita buat sebelumnya ---
             document.addEventListener('click', function(e) {
