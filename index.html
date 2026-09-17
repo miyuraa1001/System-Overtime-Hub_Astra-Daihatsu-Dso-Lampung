@@ -226,7 +226,7 @@
         <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative bg-slate-50">
             
             <!-- HEADER STICKY DENGAN EFEK KACA (BLUR/TRANSPARAN) -->
-            <header id="main-header" class="flex-shrink-0 h-16 bg-white/50 backdrop-blur-xl border-b border-white/20 shadow-sm px-4 sm:px-6 flex items-center justify-between gap-4 z-40 transition-all duration-200">
+            <header id="main-header" class="sticky top-0 flex-shrink-0 h-16 bg-white/70 backdrop-blur-md border-b border-transparent shadow-none px-4 sm:px-6 flex items-center justify-between gap-4 z-40 transition-all duration-300">
                 <div class="flex items-center gap-3">
                     <button type="button" onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-800 p-2 rounded-xl hover:bg-slate-100 transition-all" title="Buka/Tutup Menu">
                         <i class="fa-solid fa-bars text-lg"></i>
@@ -1788,14 +1788,18 @@
             if (activePage === 'reports') {
                 const rowsRekap = document.querySelectorAll('#table-rekapitulasi-body tr');
                 rowsRekap.forEach(row => {
+                    // Jangan filter baris pesan kosong/tidak ada data
+                    if (row.cells.length === 1) return; 
                     const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
+                    row.style.display = (q === "" || text.includes(q)) ? '' : 'none';
                 });
         
                 const rowsClaim = document.querySelectorAll('#table-claim-payroll-body tr');
                 rowsClaim.forEach(row => {
+                    // Jangan filter baris pesan kosong/tidak ada data
+                    if (row.cells.length === 1) return;
                     const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
+                    row.style.display = (q === "" || text.includes(q)) ? '' : 'none';
                 });
                 return;
             }
@@ -1913,6 +1917,7 @@
             e.preventDefault();
             
             const submitBtn = document.getElementById('btn-submit-request');
+            if (submitBtn && submitBtn.disabled) return;
             const selectedCabang = document.querySelector('input[name="form-cabang"]:checked');
             const selectedPekerjaan = document.querySelector('input[name="form-pekerjaan"]:checked');
             
@@ -2259,6 +2264,8 @@
                 const targetCabang = selectedCabang.toUpperCase();
                 const sheetCabang = (r.cabang || '').toString().toUpperCase();
                 const isCabangMatch = sheetCabang.includes(targetCabang) || targetCabang.includes(sheetCabang);
+                const statusClean = (r.status || '').toString().toLowerCase();
+                const isApproved = (statusClean === 'diterima' || statusClean === 'approved' || statusClean === 'revisi');
         
                 if (isAdmin) {
                     const isYearMatch = reqYear ? (reqYear === selectedTahun) : true;
@@ -3301,24 +3308,32 @@
                 });
         
             } else {
-                // Render Menit (Kelipatan 5 atau spesifik)
-                const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-                minutes.forEach((min, index) => {
-                    const angle = (index * 30) * (Math.PI / 180);
-                    const x = Math.sin(angle) * radius;
-                    const y = -Math.cos(angle) * radius;
-        
-                    const minStr = min.toString().padStart(2, '0');
-                    const div = document.createElement('div');
-                    div.className = `clock-number absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer transition-all ${selectedMinuteVal === minStr ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-700'}`;
-                    div.style.transform = `translate(${x}px, ${y}px)`;
-                    div.innerText = minStr;
-                    div.onclick = () => {
-                        selectedMinuteVal = minStr;
-                        renderClockFace();
+                // Membuat array otomatis dari "00" sampai "59"
+                const minutes = [];
+                for (let m = 0; m < 60; m++) {
+                    minutes.push(m < 10 ? `0${m}` : `${m}`);
+                }
+            
+                minutes.forEach((m, index) => {
+                    // Karena ada 60 angka, sudut per angka adalah 6 derajat (360 / 60)
+                    const angle = (index * 6) * (Math.PI / 180);
+                    const x = centerX + radius * Math.sin(angle) - 14;
+                    const y = centerY - radius * Math.cos(angle) - 14;
+            
+                    const numDiv = document.createElement('div');
+                    // Ukuran angka disesuaikan sedikit jadi w-7 h-7 agar muat 60 angka melingkar
+                    numDiv.className = `clock-num absolute w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold cursor-pointer transition-all ${selectedMinuteVal === m ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-700 text-slate-300'}`;
+                    numDiv.style.left = `${x}px`;
+                    numDiv.style.top = `${y}px`;
+                    numDiv.innerText = m;
+            
+                    numDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        selectedMinuteVal = m;
                         updateClockDisplay();
+                        renderClockFace();
                     };
-                    face.appendChild(div);
+                    face.appendChild(numDiv);
                 });
             }
         }
@@ -3380,12 +3395,35 @@
             document.getElementById('karyawan-modal').classList.add('hidden');
         }
 
+        // 1. Fungsi handleDeleteKaryawan diletakkan di luar (berdiri sendiri)
+        async function handleDeleteKaryawan(npk, nama) {
+            const confirmed = await showCustomConfirm({
+                title: "Hapus Data Karyawan?",
+                message: `Apakah Anda yakin ingin menghapus <b>${nama} (NPK: ${npk})</b> dari database master karyawan?`,
+                confirmText: "Hapus Karyawan",
+                type: "danger"
+            });
+        
+            if (!confirmed) return;
+        
+            const res = await callServer('deleteMasterKaryawan', { id: npk });
+        
+            if (res && res.success) {
+                showToast(res.message, 'info');
+                fetchKaryawanList();
+                loadAllDataFromServer();
+            } else {
+                showToast(res ? res.message : "Gagal menghapus", 'error');
+            }
+        }
+        
+        // 2. Fungsi handleKaryawanSubmit yang sudah dibersihkan dari fungsi di dalamnya
         async function handleKaryawanSubmit(e) {
             e.preventDefault();
             const submitBtn = document.getElementById('btn-submit-karyawan');
             const isEdit = document.getElementById('karyawan-is-edit').value === "true";
             const oldNpkEl = document.getElementById('karyawan-old-npk');
-
+        
             const payload = {
                 isEdit: isEdit,
                 oldNpk: oldNpkEl ? oldNpkEl.value.trim() : "",
@@ -3397,42 +3435,19 @@
                 role: document.getElementById('karyawan-role').value,
                 email: document.getElementById('karyawan-email').value.trim()
             };
-
+        
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
             }
-
-            async function handleDeleteKaryawan(npk, nama) {
-                const confirmed = await showCustomConfirm({
-                    title: "Hapus Data Karyawan?",
-                    message: `Apakah Anda yakin ingin menghapus <b>${nama} (NPK: ${npk})</b> dari database master karyawan?`,
-                    confirmText: "Hapus Karyawan",
-                    type: "danger"
-                });
-    
-                if (!confirmed) return;
-    
-                // Panggil via callServer secara aman
-                const res = await callServer('deleteMasterKaryawan', { id: npk });
-    
-                if (res && res.success) {
-                    showToast(res.message, 'info');
-                    fetchKaryawanList();
-                    loadAllDataFromServer();
-                } else {
-                    showToast(res ? res.message : "Gagal menghapus", 'error');
-                }
-            }
-
-            // Panggil via callServer secara aman
+        
             const res = await callServer('saveMasterKaryawan', payload);
-
+        
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Simpan Karyawan';
             }
-
+        
             if (res && res.success) {
                 showToast(res.message, 'success');
                 closeKaryawanModal();
@@ -3470,6 +3485,21 @@
                     const value = e.target.value;
                     handleGlobalSearch(value); // Fungsi ini sudah otomatis menyimpan ke localStorage di dalamnya
                 });
+            }
+        });
+
+        window.addEventListener('scroll', function() {
+            const header = document.getElementById('main-header');
+            if (!header) return;
+        
+            if (window.scrollY > 20) {
+                // Saat halaman digulir ke bawah (>20px): Efek glass aktif penuh
+                header.classList.add('bg-white/70', 'backdrop-blur-md', 'border-slate-200/60', 'shadow-sm');
+                header.classList.remove('bg-white', 'border-transparent', 'shadow-none');
+            } else {
+                // Saat berada di paling atas (posisi awal)
+                header.classList.remove('border-slate-200/60', 'shadow-sm');
+                header.classList.add('bg-white/70', 'backdrop-blur-md', 'border-transparent', 'shadow-none');
             }
         });
 
