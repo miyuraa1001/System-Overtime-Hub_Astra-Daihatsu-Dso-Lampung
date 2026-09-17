@@ -3314,15 +3314,18 @@
                     minutes.push(m < 10 ? `0${m}` : `${m}`);
                 }
             
+                // Sesuaikan radius lingkaran menit agar sedikit ke dalam (misal: radius 92px)
+                const minuteRadius = radius - 6; 
+            
                 minutes.forEach((m, index) => {
-                    // Karena ada 60 angka, sudut per angka adalah 6 derajat (360 / 60)
+                    // Sudut per angka untuk 60 item adalah 6 derajat (360 / 60)
                     const angle = (index * 6) * (Math.PI / 180);
-                    const x = centerX + radius * Math.sin(angle) - 14;
-                    const y = centerY - radius * Math.cos(angle) - 14;
+                    const x = centerX + minuteRadius * Math.sin(angle) - 10; // offset setengah lebar elemen
+                    const y = centerY - minuteRadius * Math.cos(angle) - 10; // offset setengah tinggi elemen
             
                     const numDiv = document.createElement('div');
-                    // Ukuran angka disesuaikan sedikit jadi w-7 h-7 agar muat 60 angka melingkar
-                    numDiv.className = `clock-num absolute w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold cursor-pointer transition-all ${selectedMinuteVal === m ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-700 text-slate-300'}`;
+                    // Ukuran diperkecil jadi w-5 h-5 (20px) dan teks 8px agar 60 angka muat melingkar sempurna
+                    numDiv.className = `clock-num absolute w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold cursor-pointer transition-all ${selectedMinuteVal === m ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-700 text-slate-300'}`;
                     numDiv.style.left = `${x}px`;
                     numDiv.style.top = `${y}px`;
                     numDiv.innerText = m;
@@ -3493,13 +3496,13 @@
             if (!header) return;
         
             if (window.scrollY > 20) {
-                // Saat halaman digulir ke bawah (>20px): Efek glass aktif penuh
-                header.classList.add('bg-white/70', 'backdrop-blur-md', 'border-slate-200/60', 'shadow-sm');
+                // 🌟 Saat digulir ke bawah (>20px): Efek kaca buram (glassmorphism) aktif penuh dengan border & shadow
+                header.classList.add('bg-white/60', 'backdrop-blur-md', 'border-slate-200/50', 'shadow-sm');
                 header.classList.remove('bg-white', 'border-transparent', 'shadow-none');
             } else {
-                // Saat berada di paling atas (posisi awal)
-                header.classList.remove('border-slate-200/60', 'shadow-sm');
-                header.classList.add('bg-white/70', 'backdrop-blur-md', 'border-transparent', 'shadow-none');
+                // 🌟 Saat di posisi paling atas: Tampil bersih tanpa shadow yang terlalu pekat
+                header.classList.remove('border-slate-200/50', 'shadow-sm');
+                header.classList.add('bg-white/40', 'backdrop-blur-sm', 'border-transparent', 'shadow-none');
             }
         });
 
