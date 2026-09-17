@@ -1104,6 +1104,20 @@
             }
         };
 
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'time') {
+                    if (typeof e.target.showPicker === 'function') {
+                        try {
+                            e.target.showPicker();
+                        } catch (err) {
+                            // Aman diabaikan jika browser tidak mendukung
+                        }
+                    }
+                });
+            });
+        });
+
 
         // ==========================================
         // 1. INISIALISASI SESI
