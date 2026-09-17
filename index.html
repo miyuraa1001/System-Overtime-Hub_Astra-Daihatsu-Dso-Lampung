@@ -1118,6 +1118,33 @@
             });
         });
 
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 1. Tangkap parameter URL dengan aman (untuk fitur auto-login jika ada) ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlUser = urlParams.get('username');
+            const urlPass = urlParams.get('password');
+    
+            if (urlUser && urlPass) {
+                const userInput = document.getElementById('username-input');
+                const passInput = document.getElementById('password-input');
+                if (userInput && passInput) {
+                    userInput.value = decodeURIComponent(urlUser.replace(/\+/g, ' '));
+                    passInput.value = urlPass;
+                }
+            }
+    
+            // --- 2. Kode pemilih waktu (time picker) universal yang kita buat sebelumnya ---
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'time') {
+                    if (typeof e.target.showPicker === 'function') {
+                        try {
+                            e.target.showPicker();
+                        } catch (err) {}
+                    }
+                }
+            });
+        });
+
 
         // ==========================================
         // 1. INISIALISASI SESI
