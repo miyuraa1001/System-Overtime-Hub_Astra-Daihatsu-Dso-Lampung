@@ -1651,12 +1651,48 @@
 
             closeSidebar();
 
+            updateActiveSidebar(pageId);
+            
             if (pageId === 'dashboard') renderDashboardView();
             else if (pageId === 'history') renderHistoryView();
             else if (pageId === 'approvals') renderApprovalsView();
             else if (pageId === 'reports') fetchServerAdjustments();
             else if (pageId === 'karyawan') fetchKaryawanList();
             else if (pageId === 'new-request') checkDailySubmissionLock();
+        }
+
+        function updateActiveSidebar(pageId) {
+            // Hilangkan semua highlight dan indikator aktif dari seluruh tombol menu
+            const allNavButtons = document.querySelectorAll('aside nav button, aside nav div button');
+            allNavButtons.forEach(btn => {
+                btn.classList.remove('bg-slate-100', 'text-blue-600', 'font-bold');
+                btn.classList.add('text-slate-600');
+                const indicator = btn.querySelector('.active-indicator');
+                if (indicator) indicator.classList.add('hidden');
+            });
+        
+            // Tentukan tombol mana yang harus di-highlight berdasarkan halaman aktif
+            let activeBtnId = `nav-${pageId}`;
+            
+            // Jika halaman berupa sub-menu (new-request atau history), aktifkan juga menu induknya (My Overtime)
+            if (pageId === 'new-request' || pageId === 'history') {
+                const subMenuContainer = document.getElementById('my-overtime-submenu');
+                const subMenuArrow = document.getElementById('my-overtime-arrow');
+                if (subMenuContainer) subMenuContainer.classList.remove('hidden');
+                if (subMenuArrow) subMenuArrow.classList.add('rotate-180');
+                
+                activeBtnId = pageId === 'new-request' ? 'nav-new-request' : 'nav-history';
+            }
+        
+            const currentBtn = document.getElementById(activeBtnId);
+            if (currentBtn) {
+                currentBtn.classList.remove('text-slate-600');
+                currentBtn.classList.add('bg-slate-100', 'text-blue-600', 'font-bold');
+                
+                // Tampilkan garis indikator biru di sebelah kiri tombol
+                const indicator = currentBtn.querySelector('.active-indicator');
+                if (indicator) indicator.classList.remove('hidden');
+            }
         }
 
         function toggleSubmenu(id) {
