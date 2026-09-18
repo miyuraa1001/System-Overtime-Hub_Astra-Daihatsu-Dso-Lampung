@@ -1491,6 +1491,69 @@
             }
         }
 
+        function renderHistoryView() {
+            const tbody = document.getElementById('history-table-body'); // Pastikan ID ini ada di HTML tabel riwayat Anda
+            if (!tbody) return; // Keluar jika elemen tabel tidak ditemukan di halaman
+
+            // Filter data lembur untuk riwayat (misalnya status yang sudah selesai/disetujui/ditolak)
+            const filteredHistory = overtimeRequests.filter(r => {
+                let reqYear = "", reqMonth = "";
+                if (r.tanggal) {
+                    const tStr = r.tanggal.toString();
+                    const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) { reqYear = parts[0]; reqMonth = parseInt(parts[1], 10).toString(); }
+                        else if (parts[2].length === 4) { reqYear = parts[2]; reqMonth = parseInt(parts[1], 10).toString(); }
+                    } else {
+                        const months = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
+                        reqYear = selectedTahun;
+                        reqMonth = (months.findIndex(m => tStr.toLowerCase().includes(m)) + 1).toString();
+                    }
+                }
+
+                const statusClean = (r.status || '').toString().toLowerCase();
+                // Riwayat mencakup data yang sudah diproses (diterima, ditolak, dll)
+                const isFinished = ['diterima', 'approved', 'ditolak', 'rejected'].includes(statusClean);
+                
+                if (isAdmin) {
+                    const isCabangMatch = (r.cabang || '').toUpperCase().includes(selectedCabang.toUpperCase());
+                    return isFinished && isCabangMatch && (reqYear === selectedTahun) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
+                } else {
+                    return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim() && isFinished;
+                }
+            });
+
+            // Render baris tabel ke dalam HTML
+            tbody.innerHTML = filteredHistory.map(r => {
+                const statusLower = (r.status || '').toLowerCase();
+                let badgeClass = 'bg-slate-100 text-slate-700';
+                let statusText = r.status || 'Pending';
+
+                if (statusLower === 'diterima' || statusLower === 'approved') {
+                    badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                    statusText = 'Diterima';
+                } else if (statusLower === 'ditolak' || statusLower === 'rejected') {
+                    badgeClass = 'bg-rose-50 text-rose-700 border border-rose-200';
+                    statusText = 'Ditolak';
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-all">
+                        <td class="py-3.5 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
+                        <td class="py-3.5 px-5">${r.cabang}</td>
+                        <td class="py-3.5 px-5">${r.tanggal}</td>
+                        <td class="py-3.5 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
+                        <td class="py-3.5 px-5">${r.pekerjaan}</td>
+                        <td class="py-3.5 px-5 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur.</td></tr>`;
+        }
+
         // ==========================================
         // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
         // ==========================================
@@ -2212,9 +2275,9 @@
 
             const pendingIds = pendingList.map(r => r.id);
 
-            // Update tampilan lokal sementara
+            // Update tampilan lokal sementara (Sudah diperbaiki jadi 'pending' huruf kecil)
             overtimeRequests.forEach(r => {
-                if ((r.status || '').toString().toLowerCase() === 'Pending') {
+                if ((r.status || '').toString().toLowerCase() === 'pending') {
                     r.status = 'Diterima';
                 }
             });
@@ -2233,6 +2296,7 @@
             }
         }
 
+        
         function toggleEditCustomPekerjaan(show) {
             const customInput = document.getElementById('edit-pekerjaan-custom');
             if (show) customInput.classList.remove('hidden');
