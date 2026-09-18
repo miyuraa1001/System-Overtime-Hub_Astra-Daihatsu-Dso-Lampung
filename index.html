@@ -1492,10 +1492,15 @@
         }
 
         function renderHistoryView() {
-            const tbody = document.getElementById('history-table-body'); // Pastikan ID ini ada di HTML tabel riwayat Anda
-            if (!tbody) return; // Keluar jika elemen tabel tidak ditemukan di halaman
-
-            // Filter data lembur untuk riwayat (misalnya status yang sudah selesai/disetujui/ditolak)
+            const tbody = document.getElementById('history-table-body');
+            if (!tbody) return;
+        
+            // Definisikan ulang status admin secara lokal agar aman dari error
+            const userIsAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
+            const selCabang = typeof selectedCabang !== 'undefined' ? selectedCabang : 'D660';
+            const selTahun = typeof selectedTahun !== 'undefined' ? selectedTahun : new Date().getFullYear().toString();
+            const selBulan = typeof selectedBulan !== 'undefined' ? selectedBulan : 'ALL';
+        
             const filteredHistory = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
@@ -1506,29 +1511,27 @@
                         else if (parts[2].length === 4) { reqYear = parts[2]; reqMonth = parseInt(parts[1], 10).toString(); }
                     } else {
                         const months = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
-                        reqYear = selectedTahun;
+                        reqYear = selTahun;
                         reqMonth = (months.findIndex(m => tStr.toLowerCase().includes(m)) + 1).toString();
                     }
                 }
-
+        
                 const statusClean = (r.status || '').toString().toLowerCase();
-                // Riwayat mencakup data yang sudah diproses (diterima, ditolak, dll)
                 const isFinished = ['diterima', 'approved', 'ditolak', 'rejected'].includes(statusClean);
                 
-                if (isAdmin) {
-                    const isCabangMatch = (r.cabang || '').toUpperCase().includes(selectedCabang.toUpperCase());
-                    return isFinished && isCabangMatch && (reqYear === selectedTahun) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
+                if (userIsAdmin) {
+                    const isCabangMatch = (r.cabang || '').toUpperCase().includes(selCabang.toUpperCase());
+                    return isFinished && isCabangMatch && (reqYear === selTahun) && (selBulan === 'ALL' || reqMonth === selBulan);
                 } else {
-                    return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim() && isFinished;
+                    return currentUser && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim() && isFinished;
                 }
             });
-
-            // Render baris tabel ke dalam HTML
+        
             tbody.innerHTML = filteredHistory.map(r => {
                 const statusLower = (r.status || '').toLowerCase();
                 let badgeClass = 'bg-slate-100 text-slate-700';
                 let statusText = r.status || 'Pending';
-
+        
                 if (statusLower === 'diterima' || statusLower === 'approved') {
                     badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
                     statusText = 'Diterima';
@@ -1536,7 +1539,7 @@
                     badgeClass = 'bg-rose-50 text-rose-700 border border-rose-200';
                     statusText = 'Ditolak';
                 }
-
+        
                 return `
                     <tr class="hover:bg-slate-50/80 transition-all">
                         <td class="py-3.5 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
