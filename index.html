@@ -1951,29 +1951,20 @@
 
         function handleGlobalSearch(query) {
             const q = (query || '').toLowerCase().trim();
+            
+            // Pastikan variabel activePage aman dari error reference
+            const currentPage = typeof activePage !== 'undefined' ? activePage : '';
         
-            // 1. Simpan kata kunci pencarian ke localStorage agar tidak hilang saat pindah menu
-            localStorage.setItem('last_global_search', query);
-        
-            // 2. Jika sedang di menu Data Karyawan
-            if (activePage === 'karyawan') {
-                // Pastikan renderKaryawanTable() menerima parameter pencarian (q) 
-                // atau kita filter baris tabelnya langsung di sini:
-                renderKaryawanTable(); // Muat ulang tabelnya
-                
-                // Filter baris tabel karyawan berdasarkan teks pencarian
-                setTimeout(() => {
-                    const rows = document.querySelectorAll('#karyawan-table-body tr'); // sesuaikan ID tbody tabel karyawanmu
-                    rows.forEach(row => {
-                        const text = row.innerText.toLowerCase();
-                        row.style.display = text.includes(q) ? '' : 'none';
-                    });
-                }, 50); // Beri jeda sedikit agar tabel selesai dirender dulu
+            // 1. Jika sedang di menu Data Karyawan
+            if (currentPage === 'karyawan') {
+                if (typeof renderKaryawanTable === 'function') {
+                    renderKaryawanTable();
+                }
                 return;
             }
         
-            // 3. Jika sedang di menu History
-            if (activePage === 'history') {
+            // 2. Jika sedang di menu History
+            if (currentPage === 'history') {
                 const rows = document.querySelectorAll('#history-table-body tr');
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
@@ -1982,8 +1973,8 @@
                 return;
             }
         
-            // 4. Jika sedang di menu Approvals
-            if (activePage === 'approvals') {
+            // 3. Jika sedang di menu Approvals
+            if (currentPage === 'approvals') {
                 const rows = document.querySelectorAll('#approvals-table-body tr');
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
@@ -1992,28 +1983,24 @@
                 return;
             }
         
-            // 5. Jika sedang di menu Reports / Payroll
-            if (activePage === 'reports') {
+            // 4. Jika sedang di menu Reports / Payroll
+            if (currentPage === 'reports') {
                 const rowsRekap = document.querySelectorAll('#table-rekapitulasi-body tr');
                 rowsRekap.forEach(row => {
-                    // Jangan filter baris pesan kosong/tidak ada data
-                    if (row.cells.length === 1) return; 
                     const text = row.innerText.toLowerCase();
-                    row.style.display = (q === "" || text.includes(q)) ? '' : 'none';
+                    row.style.display = text.includes(q) ? '' : 'none';
                 });
         
                 const rowsClaim = document.querySelectorAll('#table-claim-payroll-body tr');
                 rowsClaim.forEach(row => {
-                    // Jangan filter baris pesan kosong/tidak ada data
-                    if (row.cells.length === 1) return;
                     const text = row.innerText.toLowerCase();
-                    row.style.display = (q === "" || text.includes(q)) ? '' : 'none';
+                    row.style.display = text.includes(q) ? '' : 'none';
                 });
                 return;
             }
         
-            // 6. Jika sedang di menu Dashboard
-            if (activePage === 'dashboard') {
+            // 5. Jika sedang di menu Dashboard
+            if (currentPage === 'dashboard') {
                 const rows = document.querySelectorAll('#dashboard-recent-table tr');
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
@@ -2702,7 +2689,9 @@
             const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : 'ALL';
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
-            const bulanNama = selectedBulan === 'ALL' ? 'Semua_Bulan' : getBulanName(selectedBulan);
+            
+            // Pastikan fungsi getBulanName ada, jika belum gunakan fallback sederhana
+            const bulanNama = selectedBulan === 'ALL' ? 'Semua_Bulan' : (typeof getBulanName === 'function' ? getBulanName(selectedBulan) : selectedBulan);
         
             const filteredRequests = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
@@ -2748,7 +2737,7 @@
         
                     // Ambil durasi: jika mode rekap adjust aktif, baca dari adjustmentsMap.items jika ada
                     let dur = Number(r.durasiHours) || 0;
-                    if (isAdjustMode && adjustmentsMap[npkKey]) {
+                    if (isAdjustMode && typeof adjustmentsMap !== 'undefined' && adjustmentsMap[npkKey]) {
                         const adjData = adjustmentsMap[npkKey];
                         if (adjData.items && adjData.items[r.id]) {
                             dur = Number(adjData.items[r.id].durasiHours) || 0;
@@ -2766,7 +2755,7 @@
                 const startRow = 4; // Data pertama mulai di baris ke-4
                 const dataRows = employeeList.map((emp, idx) => {
                     const rowNum = startRow + idx;
-                    const adj = isAdjustMode ? adjustmentsMap[emp.npk] : null;
+                    const adj = (isAdjustMode && typeof adjustmentsMap !== 'undefined') ? adjustmentsMap[emp.npk] : null;
                     const l1 = adj ? adj.lembur1 : emp.lembur1;
                     const l2 = adj ? adj.lembur2 : emp.lembur2;
                     
@@ -2820,7 +2809,7 @@
                     let dur = Number(r.durasiHours) || 0;
                     
                     // Ambil durasi adjust jika mode claim_adjust aktif
-                    if (isClaimAdjust && adjustmentsMap[r.npk] && adjustmentsMap[r.npk].items && adjustmentsMap[r.npk].items[r.id]) {
+                    if (isClaimAdjust && typeof adjustmentsMap !== 'undefined' && adjustmentsMap[r.npk] && adjustmentsMap[r.npk].items && adjustmentsMap[r.npk].items[r.id]) {
                         dur = Number(adjustmentsMap[r.npk].items[r.id].durasiHours) || 0;
                     }
                     
