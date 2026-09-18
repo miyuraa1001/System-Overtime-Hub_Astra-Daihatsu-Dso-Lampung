@@ -1295,6 +1295,13 @@
         // ==========================================
         window.onload = function () {
             initRealtimeFilterDates();
+            populateDashboardYearFilter(); 
+            
+            const savedUser = localStorage.getItem('overtime_user_session');
+            if (savedUser) {
+                // ...
+                loadAllDataServer();
+            }
 
             const savedCreds = localStorage.getItem('overtime_saved_credentials');
             if (savedCreds) {
@@ -3676,6 +3683,24 @@
             alert("Berhasil disimpan!");
             // Langsung muat ulang data aktivitas terkini agar langsung berubah di UI
             loadDashboardActivity(); 
+        }
+
+        function populateDashboardYearFilter() {
+            const tahunSelect = document.getElementById('filter-dashboard-tahun');
+            if (!tahunSelect) return;
+            
+            const currentYear = new Date().getFullYear();
+            tahunSelect.innerHTML = '';
+            
+            for (let y = currentYear + 1; y >= 2024; y--) {
+                const opt = document.createElement('option');
+                opt.value = y.toString();
+                opt.innerText = y.toString();
+                if (y === currentYear) {
+                    opt.selected = true;
+                }
+                tahunSelect.appendChild(opt);
+            }
         }
 
         document.addEventListener("DOMContentLoaded", function() {
