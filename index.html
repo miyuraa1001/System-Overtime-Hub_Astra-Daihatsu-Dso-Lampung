@@ -1296,12 +1296,6 @@
         window.onload = function () {
             initRealtimeFilterDates();
             populateDashboardYearFilter(); 
-            
-            const savedUser = localStorage.getItem('overtime_user_session');
-            if (savedUser) {
-                // ...
-                loadAllDataServer();
-            }
 
             const savedCreds = localStorage.getItem('overtime_saved_credentials');
             if (savedCreds) {
