@@ -1459,6 +1459,50 @@
         }
 
         // ==========================================
+        // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
+        // ==========================================
+        function renderRecentActivities() {
+            // Sesuaikan ID elemen tbody di tabel Aktivitas Terkini Anda jika berbeda
+            const tbody = document.getElementById('table-aktivitas-terkini-body') || document.querySelector('#aktivitas-terkini-table tbody');
+            
+            // Jika elemen tabelnya tidak ditemukan di halaman aktif, abaikan saja agar tidak error
+            if (!tbody && !document.getElementById('table-aktivitas-terkini-body')) {
+                // Coba cari alternatif selector umum jika id-nya berbeda
+                const generalTable = document.querySelector('table');
+                if (!generalTable) return;
+            }
+        
+            const targetTbody = document.getElementById('table-aktivitas-terkini-body');
+            if (!targetTbody) return;
+        
+            // 1. Urutkan data berdasarkan timestamp atau id terbesar (data terbaru di atas)
+            const sortedData = [...overtimeRequests].sort((a, b) => {
+                const timeA = Number(a.timestamp) || 0;
+                const timeB = Number(b.timestamp) || 0;
+                if (timeB !== timeA) return timeB - timeA;
+                return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+            });
+        
+            // 2. Ambil 5 atau 10 data teratas untuk aktivitas terkini
+            const recentList = sortedData.slice(0, 10);
+        
+            // 3. Render ke dalam baris tabel HTML
+            targetTbody.innerHTML = recentList.map((r, idx) => `
+                <tr class="hover:bg-slate-50 transition-all">
+                    <td class="py-3 px-4 font-bold text-slate-800">
+                        ${r.nama} 
+                        <div class="text-xs text-slate-400 font-mono font-normal">(${r.npk})</div>
+                    </td>
+                    <td class="py-3 px-4 text-slate-600">${r.cabang}</td>
+                    <td class="py-3 px-4 text-slate-600">${r.tanggal}</td>
+                    <td class="py-3 px-4 text-slate-600">${r.jamMulai} - ${r.jamSelesai} <br><span class="text-xs text-slate-400">(${r.durasiHours}j)</span></td>
+                    <td class="py-3 px-4 text-slate-600">${r.pekerjaan}</td>
+                    <td class="py-3 px-4 text-center">${typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : r.status}</td>
+                </tr>
+            `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada aktivitas lembur tercatat.</td></tr>`;
+        }
+
+        // ==========================================
         // SINKRONISASI DATA UTAMA DARI SERVER
         // ==========================================
         async function loadAllDataServer() {
