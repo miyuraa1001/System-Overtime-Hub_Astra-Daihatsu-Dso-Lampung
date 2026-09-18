@@ -1476,6 +1476,11 @@
                 if (resKaryawan && resKaryawan.success) {
                     karyawanList = resKaryawan.data || [];
                 }
+
+                if (resOvertime && resOvertime.success) {
+                    overtimeRequests = resOvertime.data || [];
+                    overtimeRequests.sort((a, b) => (b.id || 0) - (a.id || 0));
+                }
         
                 renderAllViews();
                 generateDynamicNotifications();
