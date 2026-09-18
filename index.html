@@ -1164,6 +1164,7 @@
         let selectedHourVal = "17";
         let selectedMinuteVal = "00";
         let clockMode = "jam"; // 'jam' atau 'menit'
+        let pollInterval = null;
         
         let adjustmentsMap = {};
         let currentAdjustTarget = null;
@@ -1240,6 +1241,28 @@
                 }
             });
         });
+
+        async function fetchFromBackend(action, payload = {}) {
+            try {
+                // Cukup panggil endpoint internal Vercel
+                const response = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: action,
+                        payload: payload
+                    })
+                });
+                
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error("API Fetch Error:", error);
+                return { success: false, message: error.toString() };
+            }
+        }
 
 
         // ==========================================
