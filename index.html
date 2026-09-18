@@ -1210,8 +1210,8 @@
             const urlPass = urlParams.get('password');
     
             if (urlUser && urlPass) {
-                const userInput = document.getElementById('username-input');
-                const passInput = document.getElementById('password-input');
+                const userInput = document.getElementById('login-username');
+                const passInput = document.getElementById('login-password');
                 if (userInput && passInput) {
                     userInput.value = decodeURIComponent(urlUser.replace(/\+/g, ' '));
                     passInput.value = urlPass;
@@ -2228,7 +2228,7 @@
             if (res && res.success) {
                 showToast(res.message || 'Pengajuan lembur berhasil diperbarui.', 'success');
                 closeEditModal();
-                loadAllDataFromServer();
+                loadAllDataServer();
             } else {
                 alert(res ? res.message : "Gagal memperbarui data");
             }
@@ -2241,23 +2241,41 @@
                 confirmText: "Hapus Data",
                 type: "danger"
             });
-
+        
             if (!confirmed) return;
-
+        
+            // Cek apakah menggunakan Google Apps Script native atau via Vercel (callServer)
             if (typeof google !== 'undefined' && google.script && google.script.run) {
                 google.script.run
                     .withSuccessHandler(function(res) {
                         if (res.success) {
                             showToast('Pengajuan lembur berhasil dihapus.', 'info');
-                            loadAllDataFromServer();
+                            loadAllDataServer(); // Menggunakan nama fungsi yang benar
                         } else {
                             showToast(res.message, 'error');
                         }
                     })
+                    .withFailureHandler(function(err) {
+                        showToast('Gagal menghubungi server: ' + err.message, 'error');
+                    })
                     .deleteOvertimeRequest(id);
+            } else if (typeof callServer === 'function') {
+                // Jika berjalan di lingkungan Vercel / fetch server proxy
+                try {
+                    const res = await callServer('deleteOvertimeRequest', id);
+                    if (res && res.success) {
+                        showToast('Pengajuan lembur berhasil dihapus.', 'info');
+                        loadAllDataServer();
+                    } else {
+                        showToast(res?.message || 'Gagal menghapus data', 'error');
+                    }
+                } catch (err) {
+                    showToast('Terjadi kesalahan koneksi.', 'error');
+                }
+            } else {
+                showToast('Lingkungan server tidak dikenali.', 'error');
             }
         }
-
         // ==========================================
         // RENDER LENGKAP REPORTS & PAYROLL (CLEAN & SYNCED)
         // ==========================================
@@ -2293,9 +2311,11 @@
                 if (isAdmin) {
                     const isYearMatch = reqYear ? (reqYear === selectedTahun) : true;
                     const isMonthMatch = (selectedBulan === 'ALL') || (reqMonth === selectedBulan);
-                    return isCabangMatch && isYearMatch && isMonthMatch;
+                    // ✅ Ditambahkan isApproved agar data Pending/Ditolak tidak ikut masuk rekap & payroll
+                    return isApproved && isCabangMatch && isYearMatch && isMonthMatch;
                 } else {
-                    return (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
+                    // ✅ Untuk user biasa juga pastikan hanya melihat data miliknya yang sudah approved
+                    return isApproved && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
                 }
             });
         
@@ -3448,7 +3468,7 @@
             if (res && res.success) {
                 showToast(res.message, 'info');
                 fetchKaryawanList();
-                loadAllDataFromServer();
+                loadAllDataServer();
             } else {
                 showToast(res ? res.message : "Gagal menghapus", 'error');
             }
@@ -3489,7 +3509,7 @@
                 showToast(res.message, 'success');
                 closeKaryawanModal();
                 fetchKaryawanList();
-                loadAllDataFromServer();
+                loadAllDataServer();
             } else {
                 alert(res ? res.message : "Gagal memproses data karyawan");
             }
