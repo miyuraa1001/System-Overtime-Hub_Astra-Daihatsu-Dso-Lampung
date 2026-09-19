@@ -241,19 +241,22 @@
 
                 <div class="flex items-center gap-4">
                     <div class="relative" id="notif-wrapper">
-                        <!-- Panggilan fungsi disesuaikan: toggleNotifications(event) & markAllNotificationsAsRead() -->
                         <button onclick="toggleNotifications(event)" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 relative focus:outline-none transition-all">
                             <i class="fa-regular fa-bell text-lg"></i>
                             <span id="notif-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white hidden"></span>
                         </button>
                         
-                        <div id="notif-popover" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200/80 p-4 z-50">
+                        <!-- POPOVER RESPONSIVE (Fixed di Mobile, Absolute di Desktop) -->
+                        <div id="notif-popover" class="hidden fixed inset-x-4 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 bg-white rounded-2xl shadow-2xl sm:shadow-xl border border-slate-200/80 p-4 z-50 animate-fade-in">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
                                 <h4 class="font-bold text-xs text-slate-800">Notifikasi Sistem</h4>
                                 <div class="flex items-center gap-2">
                                     <span id="notif-count-text" class="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">0 Baru</span>
-                                    <!-- Tombol Tandai Sudah Dibaca -->
                                     <button onclick="markAllNotificationsAsRead()" class="text-[10px] text-slate-400 hover:text-blue-600 transition-colors">Tandai Dibaca</button>
+                                    <!-- Tombol Tutup Khusus Layar Mobile -->
+                                    <button onclick="toggleNotifications(event)" class="sm:hidden text-slate-400 hover:text-slate-600 pl-1">
+                                        <i class="fa-solid fa-xmark text-sm"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div id="notif-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
@@ -523,23 +526,23 @@
                         <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Riwayat Lembur (History)</h1>
                         <p class="text-xs text-slate-500 mt-0.5">Daftar pengajuan lembur Anda. Dapat diedit/dihapus dalam kurun waktu 24 jam.</p>
                     </div>
-
+                
                     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="w-full text-left border-collapse min-w-[750px]">
                                 <thead>
-                                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                                        <th class="py-3.5 px-5">Cabang</th>
-                                        <th class="py-3.5 px-5">NPK</th>
-                                        <th class="py-3.5 px-5">Tanggal</th>
-                                        <th class="py-3.5 px-5">Jam Lembur</th>
-                                        <th class="py-3.5 px-5">Durasi</th>
-                                        <th class="py-3.5 px-5">Jenis Pekerjaan</th>
-                                        <th class="py-3.5 px-5 text-center">Status</th>
-                                        <th class="py-3.5 px-5 text-center">Aksi (Max 24j)</th>
+                                    <tr class="bg-slate-50/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                        <th class="py-3.5 px-4">Karyawan / NPK</th>
+                                        <th class="py-3.5 px-4">Cabang</th>
+                                        <th class="py-3.5 px-4">Tanggal</th>
+                                        <th class="py-3.5 px-4">Jam Lembur</th>
+                                        <th class="py-3.5 px-4">Durasi</th>
+                                        <th class="py-3.5 px-4">Jenis Pekerjaan</th>
+                                        <th class="py-3.5 px-4 text-center">Status</th>
+                                        <th class="py-3.5 px-4 text-center">Aksi (Max 24j)</th>
                                     </tr>
                                 </thead>
-                                <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                                <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs text-slate-700">
                             </table>
                         </div>
                     </div>
@@ -1545,8 +1548,8 @@
                 const isPending = (r.status || '').toString().toLowerCase() === 'pending';
                 
                 // Gunakan getStatusBadge jika ada, atau buat badge manual jika tidak ada
-                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
-                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${
+               const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                         (r.status || '').toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         (r.status || '').toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
@@ -1557,13 +1560,31 @@
         
                 return `
                     <tr class="hover:bg-slate-50/80 transition-all">
-                        <td class="py-3.5 px-5 font-semibold">${r.nama || '-'} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
-                        <td class="py-3.5 px-5">${r.cabang}</td>
-                        <td class="py-3.5 px-5">${r.tanggal}</td>
-                        <td class="py-3.5 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
-                        <td class="py-3.5 px-5">${r.pekerjaan}</td>
-                        <td class="py-3.5 px-5 text-center">${badgeHTML}</td>
-                        <td class="py-3.5 px-5 text-center">
+                        <!-- 1. KARYAWAN & NPK -->
+                        <td class="py-3.5 px-4 font-semibold text-slate-800">
+                            ${r.nama || '-'} <span class="text-slate-400 font-normal">(${r.npk})</span>
+                        </td>
+                        
+                        <!-- 2. CABANG -->
+                        <td class="py-3.5 px-4 font-medium text-slate-600">${r.cabang || '-'}</td>
+                        
+                        <!-- 3. TANGGAL -->
+                        <td class="py-3.5 px-4 text-slate-600">${r.tanggal || '-'}</td>
+                        
+                        <!-- 4. JAM LEMBUR -->
+                        <td class="py-3.5 px-4 font-mono text-slate-600">${r.jamMulai} - ${r.jamSelesai}</td>
+                        
+                        <!-- 5. DURASI -->
+                        <td class="py-3.5 px-4 font-bold text-slate-800">${durasiFormatted} Jam</td>
+                        
+                        <!-- 6. JENIS PEKERJAAN -->
+                        <td class="py-3.5 px-4 text-slate-600 max-w-[200px] truncate" title="${r.pekerjaan}">${r.pekerjaan || '-'}</td>
+                        
+                        <!-- 7. STATUS -->
+                        <td class="py-3.5 px-4 text-center">${badgeHTML}</td>
+                        
+                        <!-- 8. AKSI -->
+                        <td class="py-3.5 px-4 text-center">
                             <div class="flex items-center justify-center gap-1.5">
                                 ${isPending ? `
                                     <button onclick="openEditModal('${r.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Pengajuan">
@@ -1577,9 +1598,9 @@
                         </td>
                     </tr>
                 `;
-            }).join('') || `<tr><td colspan="7" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur.</td></tr>`;
+            }).join('') || `<tr><td colspan="8" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur.</td></tr>`;
         }
-
+        
         // ==========================================
         // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
         // ==========================================
