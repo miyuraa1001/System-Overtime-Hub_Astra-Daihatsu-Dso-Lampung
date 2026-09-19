@@ -2981,23 +2981,29 @@
         // SAKELAR TAMPILAN VIEW MODE & FETCH ADJUST
         // ==========================================
         async function fetchServerAdjustments() {
-            const periodeKey = getCurrentPeriodeKey();
-            // Panggil via callServer dengan await agar datanya benar-benar ditunggu sampai selesai
-            const res = await callServer('getAdjustmentsByPeriod', { periodeKey: periodeKey });
-            if (res && res.success) {
-                adjustmentsMap = res.data || {};
-                renderReportsView();
-            } else {
-                adjustmentsMap = {};
+            try {
+                const response = await callServer('getAdjustmentsData'); // ganti nama fungsi Apps Script kamu
+                if (response && response.success) {
+                    // Memetakan hasil dari database ke adjustmentsMap
+                    adjustmentsMap = response.data || {};
+                }
+            } catch (e) {
+                console.error("Gagal mengambil data adjust:", e);
+            } finally {
+                // Panggil render setelah data siap
                 renderReportsView();
             }
         }
 
         async function switchClaimViewMode(mode) {
+            // 1. Set kedua variabel agar cocok di seluruh fungsi
             claimViewMode = mode;
+            reportModeLog = mode;
+        
+            // 2. Styling tombol UI
             const btnAsli = document.getElementById('btn-claim-view-asli');
             const btnAdjust = document.getElementById('btn-claim-view-adjust');
-
+        
             if (btnAsli && btnAdjust) {
                 if (mode === 'asli') {
                     btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold";
@@ -3008,12 +3014,19 @@
                 }
             }
             
-            // Tunggu data adjust selesai ditarik dari database, baru render ulang tabel
+            // 3. Ambil data adjust dari sheet Database, lalu paksa render ulang UI
             await fetchServerAdjustments();
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
         }
-
+        
         async function switchRekapViewMode(mode) {
+            // 1. Set kedua variabel agar cocok di seluruh fungsi
             rekapViewMode = mode;
+            reportModeRekap = mode;
+        
+            // 2. Styling tombol UI
             const btnAsli = document.getElementById('btn-view-asli');
             const btnAdjust = document.getElementById('btn-view-adjust');
             
@@ -3027,7 +3040,11 @@
                 }
             }
             
+            // 3. Ambil data adjust dari sheet Database, lalu paksa render ulang UI
             await fetchServerAdjustments();
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
         }
 
         // ==========================================
