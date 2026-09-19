@@ -1508,17 +1508,10 @@
             const tbody = document.getElementById('history-table-body');
             if (!tbody) return;
         
-            // Definisikan status admin secara aman
             const userIsAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
-            
-            // Ambil nilai filter dari dropdown jika ada
-            const elCabang = document.getElementById('filter-report-cabang');
-            const elTahun = document.getElementById('filter-report-tahun');
-            const elBulan = document.getElementById('filter-report-bulan');
-        
-            const selCabang = elCabang ? elCabang.value : (typeof selectedCabang !== 'undefined' ? selectedCabang : 'D660');
-            const selTahun = elTahun ? elTahun.value : (typeof selectedTahun !== 'undefined' ? selectedTahun : new Date().getFullYear().toString());
-            const selBulan = elBulan ? elBulan.value : (typeof selectedBulan !== 'undefined' ? selectedBulan : 'ALL');
+            const selCabang = typeof selectedCabang !== 'undefined' ? selectedCabang : 'D660';
+            const selTahun = typeof selectedTahun !== 'undefined' ? selectedTahun : new Date().getFullYear().toString();
+            const selBulan = typeof selectedBulan !== 'undefined' ? selectedBulan : 'ALL';
         
             const filteredHistory = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
@@ -1528,10 +1521,6 @@
                     if (parts.length === 3) {
                         if (parts[0].length === 4) { reqYear = parts[0]; reqMonth = parseInt(parts[1], 10).toString(); }
                         else if (parts[2].length === 4) { reqYear = parts[2]; reqMonth = parseInt(parts[1], 10).toString(); }
-                    } else {
-                        const months = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
-                        reqYear = selTahun;
-                        reqMonth = (months.findIndex(m => tStr.toLowerCase().includes(m)) + 1).toString();
                     }
                 }
         
@@ -1539,7 +1528,6 @@
                     const isCabangMatch = (r.cabang || '').toUpperCase().includes(selCabang.toUpperCase());
                     return isCabangMatch && (reqYear === selTahun) && (selBulan === 'ALL' || reqMonth === selBulan);
                 } else {
-                    // UNTUK KARYAWAN: Tampilkan SEMUA status (Pending, Diterima, Ditolak) milik NPK-nya
                     return currentUser && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
                 }
             });
@@ -1547,8 +1535,11 @@
             tbody.innerHTML = filteredHistory.map(r => {
                 const isPending = (r.status || '').toString().toLowerCase() === 'pending';
                 
-                // Gunakan getStatusBadge jika ada, atau buat badge manual jika tidak ada
-               const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
+                // DEKLARASI VARIABEL DURASIFORMATTED AGAR TIDAK ERROR
+                const durasiFormatted = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
+        
+                // Tampilan Badge Status
+                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                         (r.status || '').toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         (r.status || '').toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
@@ -1560,30 +1551,15 @@
         
                 return `
                     <tr class="hover:bg-slate-50/80 transition-all">
-                        <!-- 1. KARYAWAN & NPK -->
                         <td class="py-3.5 px-4 font-semibold text-slate-800">
                             ${r.nama || '-'} <span class="text-slate-400 font-normal">(${r.npk})</span>
                         </td>
-                        
-                        <!-- 2. CABANG -->
-                        <td class="py-3.5 px-4 font-medium text-slate-600">${r.cabang || '-'}</td>
-                        
-                        <!-- 3. TANGGAL -->
+                        <td class="py-3.5 px-4 text-slate-600">${r.cabang || '-'}</td>
                         <td class="py-3.5 px-4 text-slate-600">${r.tanggal || '-'}</td>
-                        
-                        <!-- 4. JAM LEMBUR -->
                         <td class="py-3.5 px-4 font-mono text-slate-600">${r.jamMulai} - ${r.jamSelesai}</td>
-                        
-                        <!-- 5. DURASI -->
                         <td class="py-3.5 px-4 font-bold text-slate-800">${durasiFormatted} Jam</td>
-                        
-                        <!-- 6. JENIS PEKERJAAN -->
                         <td class="py-3.5 px-4 text-slate-600 max-w-[200px] truncate" title="${r.pekerjaan}">${r.pekerjaan || '-'}</td>
-                        
-                        <!-- 7. STATUS -->
                         <td class="py-3.5 px-4 text-center">${badgeHTML}</td>
-                        
-                        <!-- 8. AKSI -->
                         <td class="py-3.5 px-4 text-center">
                             <div class="flex items-center justify-center gap-1.5">
                                 ${isPending ? `
