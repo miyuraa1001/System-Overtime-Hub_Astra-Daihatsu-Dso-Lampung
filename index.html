@@ -1189,7 +1189,9 @@
         </div>
 
     <script>
+        // ==========================================
         // GLOBAL DATA STATE
+        // ==========================================
         let currentUser = null;
         let currentUserRole = 'user';
         let activePage = 'dashboard';
@@ -1197,16 +1199,22 @@
         let karyawanList = [];
         let notifications = [];
         let confirmResolveCallback = null;
+        
+        // Clock Picker State
         let currentClockTargetInput = null;
         let selectedHourVal = "17";
         let selectedMinuteVal = "00";
         let clockMode = "jam"; // 'jam' atau 'menit'
+        
+        // Polling State
         let pollInterval = null;
         
+        // Reports / Adjustments State (Local Memory & Cache)
         let adjustmentsMap = {};
         let currentAdjustTarget = null;
-        let rekapViewMode = 'adjust';
-        let claimViewMode = 'adjust';
+        let reportModeRekap = 'asli'; // 'asli' atau 'adjust'
+        let reportModeLog = 'asli';   // 'asli' atau 'adjust'
+        let cachedAdjustments = [];   // Cache data adjustment dari server
 
 
         // 🛠️ 1. TARUH callServer DI SINI (SEBAGAI GLOBAL FUNCTION)
@@ -1498,9 +1506,13 @@
             renderDashboardView();
             renderHistoryView();
             renderApprovalsView();
-            renderReportsView();
+            renderReportsView(); // Menggunakan renderReportsView yang sudah kita sinkronkan
+            
+            // Panggil fetchKaryawanList HANYA jika list karyawan masih kosong/belum di-cache
             if (currentUser && currentUser.role === 'admin') {
-                fetchKaryawanList();
+                if (!karyawanList || karyawanList.length === 0) {
+                    fetchKaryawanList();
+                }
             }
         }
 
@@ -1921,19 +1933,31 @@
             
             const target = document.getElementById(`page-${pageId}`);
             if (target) target.classList.remove('hidden');
-
-            closeSidebar();
-
-            updateActiveSidebar(pageId);
+        
+            if (typeof closeSidebar === 'function') closeSidebar();
+            if (typeof updateActiveSidebar === 'function') updateActiveSidebar(pageId);
             
-            if (pageId === 'dashboard') renderDashboardView();
-            else if (pageId === 'history') renderHistoryView();
-            else if (pageId === 'approvals') renderApprovalsView();
-            else if (pageId === 'reports') fetchServerAdjustments();
-            else if (pageId === 'karyawan') fetchKaryawanList();
-            else if (pageId === 'new-request') checkDailySubmissionLock();
+            // Routing render tampilan sesuai halaman
+            if (pageId === 'dashboard') {
+                renderDashboardView();
+            } else if (pageId === 'history') {
+                renderHistoryView();
+            } else if (pageId === 'approvals') {
+                renderApprovalsView();
+            } else if (pageId === 'reports' || pageId === 'reports-payroll') {
+                if (typeof renderReportsView === 'function') {
+                    renderReportsView();
+                } else if (typeof loadReportsView === 'function') {
+                    loadReportsView();
+                }
+            } else if (pageId === 'karyawan') {
+                if (typeof fetchKaryawanList === 'function') fetchKaryawanList();
+            } else if (pageId === 'new-request') {
+                if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
+            }
         }
 
+        
         function updateActiveSidebar(pageId) {
             // Hilangkan semua highlight dan indikator aktif dari seluruh tombol menu
             const allNavButtons = document.querySelectorAll('aside nav button, aside nav div button');
@@ -2550,6 +2574,7 @@
                 showToast('Lingkungan server tidak dikenali.', 'error');
             }
         }
+        
         // ==========================================
         // RENDER LENGKAP REPORTS & PAYROLL (CLEAN & SYNCED)
         // ==========================================
@@ -2558,8 +2583,9 @@
             const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
-            const bulanNama = selectedBulan === 'ALL' ? 'Semua Bulan' : getBulanName(selectedBulan);
+            const bulanNama = selectedBulan === 'ALL' ? 'Semua Bulan' : (typeof getBulanName === 'function' ? getBulanName(selectedBulan) : selectedBulan);
         
+            // Filter Data Lembur yang Hanya Berstatus Approved/Diterima
             const filteredRequests = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
@@ -2585,10 +2611,8 @@
                 if (isAdmin) {
                     const isYearMatch = reqYear ? (reqYear === selectedTahun) : true;
                     const isMonthMatch = (selectedBulan === 'ALL') || (reqMonth === selectedBulan);
-                    // ✅ Ditambahkan isApproved agar data Pending/Ditolak tidak ikut masuk rekap & payroll
                     return isApproved && isCabangMatch && isYearMatch && isMonthMatch;
                 } else {
-                    // ✅ Untuk user biasa juga pastikan hanya melihat data miliknya yang sudah approved
                     return isApproved && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
                 }
             });
@@ -2611,14 +2635,12 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        // 🛠️ PENGAMAN LAPIS GANDA GAJI (DIJAMIN TIDAK AKAN HILANG / JADI 0)
+                        // Pengaman Lapis Ganda Gaji
                         let gajiPokok = Number(r.gaji) || 0;
         
                         if (gajiPokok === 0 && karyawanList && karyawanList.length > 0) {
                             const foundKaryawan = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
-                            if (foundKaryawan) {
-                                gajiPokok = Number(foundKaryawan.gaji) || 0;
-                            }
+                            if (foundKaryawan) gajiPokok = Number(foundKaryawan.gaji) || 0;
                         }
         
                         if (gajiPokok === 0 && currentUser && currentUser.npk && currentUser.npk.toString().trim() === npkKey) {
@@ -2637,16 +2659,15 @@
                     }
         
                     let dur = Number(r.durasiHours) || 0;
-                    
-                    // Jika mode rekap adjust aktif, ambil durasi spesifik per baris dari adjustmentsMap.items
-                    if (rekapViewMode === 'adjust' && adjustmentsMap[npkKey]) {
+        
+                    // CEK DENGAN VARIABEL MODAL BARU: reportModeRekap
+                    if (reportModeRekap === 'adjust' && adjustmentsMap[npkKey]) {
                         const adjData = adjustmentsMap[npkKey];
                         if (adjData.items && adjData.items[r.id]) {
                             dur = Number(adjData.items[r.id].durasiHours) || 0;
                         }
                     }
         
-                    // Akumulasikan lembur 1 (maksimal 1 jam per hari) dan lembur 2 (sisanya)
                     employeeMap[npkKey].lembur1 += Math.min(dur, 1);
                     employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
                 });
@@ -2655,67 +2676,69 @@
                 employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
         
                 let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
-                rekapTbody.innerHTML = employeeList.map((emp, idx) => {
-                    const adj = (rekapViewMode === 'adjust') ? adjustmentsMap[emp.npk] : null;
-                    let l1 = emp.lembur1;
-                    let l2 = emp.lembur2;
+                if (rekapTbody) {
+                    rekapTbody.innerHTML = employeeList.map((emp, idx) => {
+                        const adj = (reportModeRekap === 'adjust') ? adjustmentsMap[emp.npk] : null;
+                        let l1 = emp.lembur1;
+                        let l2 = emp.lembur2;
         
-                    if (adj) {
-                        if (adj.lembur1 !== undefined) l1 = Number(adj.lembur1) || 0;
-                        if (adj.lembur2 !== undefined) l2 = Number(adj.lembur2) || 0;
-                    }
+                        if (adj) {
+                            if (adj.lembur1 !== undefined) l1 = Number(adj.lembur1) || 0;
+                            if (adj.lembur2 !== undefined) l2 = Number(adj.lembur2) || 0;
+                        }
         
-                    const totalPoin = (l1 * 1.5) + (l2 * 2.7);
-                    const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
+                        const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+                        const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
         
-                    // Hitung poin asli berdasarkan data mentah (r.durasiHours) milik karyawan ini saja
-                    let empOrigPoin = 0;
-                    filteredRequests.filter(item => item.npk.toString().trim() === emp.npk.toString().trim()).forEach(item => {
-                        const d = Number(item.durasiHours) || 0;
-                        const oL1 = Math.min(d, 1);
-                        const oL2 = Math.max(0, d - 1);
-                        empOrigPoin += (oL1 * 1.5) + (oL2 * 2.7);
-                    });
+                        let empOrigPoin = 0;
+                        filteredRequests.filter(item => item.npk.toString().trim() === emp.npk.toString().trim()).forEach(item => {
+                            const d = Number(item.durasiHours) || 0;
+                            const oL1 = Math.min(d, 1);
+                            const oL2 = Math.max(0, d - 1);
+                            empOrigPoin += (oL1 * 1.5) + (oL2 * 2.7);
+                        });
         
-                    // Persentase akurat untuk tombol Adjust di tabel
-                    const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
-                    const isAdjusted = !!adjustmentsMap[emp.npk];
+                        const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
+                        const isAdjusted = !!adjustmentsMap[emp.npk];
         
-                    gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
+                        gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
         
-                    return `
-                        <tr class="hover:bg-slate-50 transition-all ${isAdjusted && rekapViewMode === 'adjust' ? 'bg-amber-50/40' : ''}">
-                            <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                            <td class="py-3 px-4 font-bold border-r border-slate-100">${emp.nama}</td>
-                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${emp.npk}</td>
-                            <td class="py-3 px-4 text-right border-r border-slate-100">Rp ${emp.gaji.toLocaleString('id-ID')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                            <td class="py-3 px-4 text-center font-bold text-slate-900 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-right font-bold text-emerald-600 border-r border-slate-100">Rp ${estimasiLembur.toLocaleString('id-ID')}</td>
-                            <td class="py-3 px-4 text-center">
-                                <button onclick="openAdjustModal('${emp.npk}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-sm">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> Adjust (${percent}%)
-                                </button>
-                            </td>
+                        return `
+                            <tr class="hover:bg-slate-50 transition-all ${isAdjusted && reportModeRekap === 'adjust' ? 'bg-amber-50/40' : ''}">
+                                <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                                <td class="py-3 px-4 font-bold border-r border-slate-100">${emp.nama}</td>
+                                <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${emp.npk}</td>
+                                <td class="py-3 px-4 text-right border-r border-slate-100">Rp ${emp.gaji.toLocaleString('id-ID')}</td>
+                                <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
+                                <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
+                                <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                                <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                                <td class="py-3 px-4 text-center font-bold text-slate-900 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
+                                <td class="py-3 px-4 text-right font-bold text-emerald-600 border-r border-slate-100">Rp ${estimasiLembur.toLocaleString('id-ID')}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <button onclick="openAdjustModal('${emp.npk}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-sm">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> Adjust (${percent}%)
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('') || `<tr><td colspan="11" class="text-center py-6 text-slate-400">Belum ada data rekapitulasi lembur untuk filter ini.</td></tr>`;
+                }
+        
+                if (rekapTfoot) {
+                    rekapTfoot.innerHTML = employeeList.length > 0 ? `
+                        <tr>
+                            <td colspan="4" class="py-3.5 px-4 text-center font-bold uppercase border-r border-amber-200">Total Keseluruhan</td>
+                            <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL1.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL2.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
+                            <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
+                            <td class="py-3.5 px-4 text-center font-bold border-r border-amber-200">${gPoin.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3.5 px-4 text-right font-extrabold text-emerald-700 border-r border-amber-200">Rp ${gEst.toLocaleString('id-ID')}</td>
+                            <td class="py-3.5 px-4 text-center">-</td>
                         </tr>
-                    `;
-                }).join('') || `<tr><td colspan="11" class="text-center py-6 text-slate-400">Belum ada data rekapitulasi lembur untuk filter ini.</td></tr>`;
-        
-                rekapTfoot.innerHTML = employeeList.length > 0 ? `
-                    <tr>
-                        <td colspan="4" class="py-3.5 px-4 text-center font-bold uppercase border-r border-amber-200">Total Keseluruhan</td>
-                        <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL1.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL2.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
-                        <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
-                        <td class="py-3.5 px-4 text-center font-bold border-r border-amber-200">${gPoin.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3.5 px-4 text-right font-extrabold text-emerald-700 border-r border-amber-200">Rp ${gEst.toLocaleString('id-ID')}</td>
-                        <td class="py-3.5 px-4 text-center">-</td>
-                    </tr>
-                ` : '';
+                    ` : '';
+                }
             }
         
             // 2. RENDER TABEL CLAIM LOG DETAIL HARIAN
@@ -2750,36 +2773,39 @@
             const claimTbody = document.getElementById('table-claim-payroll-body');
             const colSpanCount = isAdmin ? 10 : 11;
         
-            claimTbody.innerHTML = filteredRequests.map((r, idx) => {
-                let dur = Number(r.durasiHours) || 0;
-                
-                if (claimViewMode === 'adjust' && adjustmentsMap[r.npk]) {
-                    const adjData = adjustmentsMap[r.npk];
-                    if (adjData.items && adjData.items[r.id]) {
-                        dur = Number(adjData.items[r.id].durasiHours) || 0;
+            if (claimTbody) {
+                claimTbody.innerHTML = filteredRequests.map((r, idx) => {
+                    let dur = Number(r.durasiHours) || 0;
+                    
+                    // CEK DENGAN VARIABEL MODAL BARU: reportModeLog
+                    if (reportModeLog === 'adjust' && adjustmentsMap[r.npk]) {
+                        const adjData = adjustmentsMap[r.npk];
+                        if (adjData.items && adjData.items[r.id]) {
+                            dur = Number(adjData.items[r.id].durasiHours) || 0;
+                        }
                     }
-                }
-                
-                let l1 = Math.min(dur, 1);
-                let l2 = Math.max(0, dur - 1);
-                const totalPoin = (l1 * 1.5) + (l2 * 2.7);
+                    
+                    let l1 = Math.min(dur, 1);
+                    let l2 = Math.max(0, dur - 1);
+                    const totalPoin = (l1 * 1.5) + (l2 * 2.7);
         
-                return `
-                    <tr class="hover:bg-slate-50 transition-all">
-                        <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                        <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
-                        <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                        <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                        <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
-                        <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
-                        ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${getStatusBadge(r.status)}</td>`}
-                    </tr>
-                `;
-            }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+                    return `
+                        <tr class="hover:bg-slate-50 transition-all">
+                            <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
+                            <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
+                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
+                            <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
+                            <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
+                            ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : r.status}</td>`}
+                        </tr>
+                    `;
+                }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+            }
         }
         
         // ==========================================
@@ -2967,6 +2993,32 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
+        }
+
+        async function loadReportsView() {
+            const selTahun = document.getElementById('filter-report-tahun')?.value || new Date().getFullYear().toString();
+            const selBulan = document.getElementById('filter-report-bulan')?.value || (new Date().getMonth() + 1).toString();
+            const periodeKey = `${selTahun}-${selBulan.padStart(2, '0')}`;
+        
+            // 1. Ambil data adjustment 1x dari server lalu simpan ke Cache
+            try {
+                const res = await callServer('getAdjustmentsByPeriod', { periodeKey: periodeKey });
+                if (res && res.success) {
+                    cachedAdjustments = res.data || [];
+                    
+                    // Masukkan ke Map agar pencarian data adjustment per NPK instan
+                    adjustmentsMap = {};
+                    cachedAdjustments.forEach(item => {
+                        if (item.npk) adjustmentsMap[item.npk.toString().trim()] = item;
+                    });
+                }
+            } catch (err) {
+                console.warn("Gagal mengambil data adjustment:", err);
+            }
+        
+            // 2. Render kedua tabel sekaligus secara otomatis
+            if (typeof renderRekapTable === 'function') renderRekapTable();
+            if (typeof renderLogTable === 'function') renderLogTable();
         }
         
         function getCurrentPeriodeKey() {
