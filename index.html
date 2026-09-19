@@ -2583,22 +2583,16 @@
             const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
-            const bulanNama = selectedBulan === 'ALL' ? 'Semua Bulan' : (typeof getBulanName === 'function' ? getBulanName(selectedBulan) : selectedBulan);
         
-            // Filter Data Lembur yang Hanya Berstatus Approved/Diterima
+            // Filter data yang statusnya Diterima/Approved
             const filteredRequests = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
                     const tStr = r.tanggal.toString().trim();
                     const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
                     if (parts.length === 3) {
-                        if (parts[0].length === 4) {
-                            reqYear = parts[0];
-                            reqMonth = parseInt(parts[1], 10).toString();
-                        } else if (parts[2].length === 4) {
-                            reqYear = parts[2];
-                            reqMonth = parseInt(parts[1], 10).toString();
-                        }
+                        if (parts[0].length === 4) { reqYear = parts[0]; reqMonth = parseInt(parts[1], 10).toString(); }
+                        else if (parts[2].length === 4) { reqYear = parts[2]; reqMonth = parseInt(parts[1], 10).toString(); }
                     }
                 }
         
@@ -2609,9 +2603,7 @@
                 const isApproved = (statusClean === 'diterima' || statusClean === 'approved' || statusClean === 'revisi');
         
                 if (isAdmin) {
-                    const isYearMatch = reqYear ? (reqYear === selectedTahun) : true;
-                    const isMonthMatch = (selectedBulan === 'ALL') || (reqMonth === selectedBulan);
-                    return isApproved && isCabangMatch && isYearMatch && isMonthMatch;
+                    return isApproved && isCabangMatch && (reqYear ? reqYear === selectedTahun : true) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
                 } else {
                     return isApproved && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
                 }
@@ -2619,14 +2611,7 @@
         
             filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
         
-            if (isAdmin) {
-                const elTitleRekap = document.getElementById('title-rekap-upah');
-                const elTitleClaim = document.getElementById('title-claim-payroll');
-                if (elTitleRekap) elTitleRekap.innerText = "Rekapitulasi Lembur Karyawan";
-                if (elTitleClaim) elTitleClaim.innerText = "Log Rincian Harian Lembur";
-            }
-        
-            // 1. RENDER TABEL REKAPITULASI UPAH
+            // 1. RENDER TABEL REKAPITULASI UPAH (SINKRON DENGAN GS BARU)
             if (isAdmin) {
                 const rekapTbody = document.getElementById('table-rekapitulasi-body');
                 const rekapTfoot = document.getElementById('table-rekapitulasi-foot');
@@ -2635,16 +2620,10 @@
                 filteredRequests.forEach(r => {
                     const npkKey = (r.npk || '').toString().trim();
                     if (!employeeMap[npkKey]) {
-                        // Pengaman Lapis Ganda Gaji
                         let gajiPokok = Number(r.gaji) || 0;
-        
                         if (gajiPokok === 0 && karyawanList && karyawanList.length > 0) {
-                            const foundKaryawan = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
-                            if (foundKaryawan) gajiPokok = Number(foundKaryawan.gaji) || 0;
-                        }
-        
-                        if (gajiPokok === 0 && currentUser && currentUser.npk && currentUser.npk.toString().trim() === npkKey) {
-                            gajiPokok = Number(currentUser.gaji) || 0;
+                            const found = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
+                            if (found) gajiPokok = Number(found.gaji) || 0;
                         }
         
                         employeeMap[npkKey] = { 
@@ -2652,22 +2631,23 @@
                             npk: npkKey, 
                             gaji: gajiPokok, 
                             lembur1: 0, 
-                            lembur2: 0, 
-                            lembur3: 0, 
-                            lembur4: 0 
+                            lembur2: 0 
                         };
                     }
         
                     let dur = Number(r.durasiHours) || 0;
         
-                    // CEK DENGAN VARIABEL MODAL BARU: reportModeRekap
+                    // Jika mode Hasil Adjust aktif, ambil durasi item spesifik
                     if (reportModeRekap === 'adjust' && adjustmentsMap[npkKey]) {
                         const adjData = adjustmentsMap[npkKey];
                         if (adjData.items && adjData.items[r.id]) {
-                            dur = Number(adjData.items[r.id].durasiHours) || 0;
+                            dur = Number(adjData.items[r.id].durasiHours || adjData.items[r.id].durasi) || 0;
                         }
                     }
         
+                    // HITUNG DINAMIS PER PENGAJUAN (Sama persis dengan GS):
+                    // Lembur 1 = Maksimal 1 jam/hari
+                    // Lembur 2 = Sisa durasi melebihi 1 jam
                     employeeMap[npkKey].lembur1 += Math.min(dur, 1);
                     employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
                 });
@@ -2678,10 +2658,11 @@
                 let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
                 if (rekapTbody) {
                     rekapTbody.innerHTML = employeeList.map((emp, idx) => {
-                        const adj = (reportModeRekap === 'adjust') ? adjustmentsMap[emp.npk] : null;
                         let l1 = emp.lembur1;
                         let l2 = emp.lembur2;
         
+                        // Jika ada potongan target poin langsung dari backend
+                        const adj = (reportModeRekap === 'adjust') ? adjustmentsMap[emp.npk] : null;
                         if (adj) {
                             if (adj.lembur1 !== undefined) l1 = Number(adj.lembur1) || 0;
                             if (adj.lembur2 !== undefined) l2 = Number(adj.lembur2) || 0;
@@ -2690,12 +2671,11 @@
                         const totalPoin = (l1 * 1.5) + (l2 * 2.7);
                         const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
         
+                        // Hitung persen adjustment
                         let empOrigPoin = 0;
                         filteredRequests.filter(item => item.npk.toString().trim() === emp.npk.toString().trim()).forEach(item => {
                             const d = Number(item.durasiHours) || 0;
-                            const oL1 = Math.min(d, 1);
-                            const oL2 = Math.max(0, d - 1);
-                            empOrigPoin += (oL1 * 1.5) + (oL2 * 2.7);
+                            empOrigPoin += (Math.min(d, 1) * 1.5) + (Math.max(0, d - 1) * 2.7);
                         });
         
                         const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
@@ -2741,47 +2721,16 @@
                 }
             }
         
-            // 2. RENDER TABEL CLAIM LOG DETAIL HARIAN
-            const headerRow = document.getElementById('table-claim-header-row');
-            if (headerRow) {
-                headerRow.innerHTML = isAdmin ? `
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
-                    <th class="py-3 px-4">Keterangan</th>
-                ` : `
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">No.</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50">Nama</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">NPK</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur I</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur II</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur III</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Lembur IV</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Total Poin</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50 text-center">Tanggal</th>
-                    <th class="py-3 px-4 border-r border-orange-200/50">Keterangan</th>
-                    <th class="py-3 px-4 text-center">Status</th>
-                `;
-            }
-        
+            // 2. RENDER TABEL LOG RINCIAN HARIAN
             const claimTbody = document.getElementById('table-claim-payroll-body');
-            const colSpanCount = isAdmin ? 10 : 11;
-        
             if (claimTbody) {
                 claimTbody.innerHTML = filteredRequests.map((r, idx) => {
                     let dur = Number(r.durasiHours) || 0;
                     
-                    // CEK DENGAN VARIABEL MODAL BARU: reportModeLog
                     if (reportModeLog === 'adjust' && adjustmentsMap[r.npk]) {
                         const adjData = adjustmentsMap[r.npk];
                         if (adjData.items && adjData.items[r.id]) {
-                            dur = Number(adjData.items[r.id].durasiHours) || 0;
+                            dur = Number(adjData.items[r.id].durasiHours || adjData.items[r.id].durasi) || 0;
                         }
                     }
                     
@@ -2804,10 +2753,10 @@
                             ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : r.status}</td>`}
                         </tr>
                     `;
-                }).join('') || `<tr><td colspan="${colSpanCount}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+                }).join('') || `<tr><td colspan="${isAdmin ? 10 : 11}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
             }
         }
-        
+                
         // ==========================================
         // EKSPOR EXCEL NATIVE FORMULAS (FINAL SYNCED)
         // ==========================================
