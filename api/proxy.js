@@ -10,7 +10,10 @@ export default async function handler(req, res) {
     const API_TOKEN = process.env.GAS_API_TOKEN;
 
     if (!GAS_URL) {
-      return res.status(200).json({ success: false, message: 'DEBUG ERROR: GAS_WEB_APP_URL di Vercel kosong/belum terbaca.' });
+      return res.status(200).json({ 
+        success: false, 
+        message: 'DEBUG ERROR: GAS_WEB_APP_URL di Vercel belum dikonfigurasi.' 
+      });
     }
 
     const response = await fetch(GAS_URL, {
@@ -24,19 +27,31 @@ export default async function handler(req, res) {
     });
 
     const textResult = await response.text();
+    const trimmedResult = textResult.trim();
     
-    try {
-      const jsonResult = JSON.parse(textResult);
-      return res.status(200).json(jsonResult);
-    } catch (e) {
-      // Kirim teks asli dari Google supaya kelihatan error-nya di frontend/toast
+    // 1. Deteksi jika balasan berupa HTML (Halaman Error / Login Google)
+    if (trimmedResult.startsWith('<') || trimmedResult.toLowerCase().includes('<!doctype html>')) {
       return res.status(200).json({ 
         success: false, 
-        message: "GAS Response Error: " + textResult.substring(0, 150) 
+        message: 'Google Apps Script mengembalikan halaman HTML/Error. Pastikan Deployment Web App di GAS sudah di-set ke "Anyone".' 
+      });
+    }
+
+    // 2. Parse JSON dengan aman
+    try {
+      const jsonResult = JSON.parse(trimmedResult);
+      return res.status(200).json(jsonResult);
+    } catch (parseError) {
+      return res.status(200).json({ 
+        success: false, 
+        message: 'Format respon dari server tidak valid (Gagal parsing JSON).' 
       });
     }
 
   } catch (error) {
-    return res.status(200).json({ success: false, message: "Proxy Catch Error: " + error.message });
+    return res.status(200).json({ 
+      success: false, 
+      message: "Proxy Catch Error: " + error.message 
+    });
   }
 }
