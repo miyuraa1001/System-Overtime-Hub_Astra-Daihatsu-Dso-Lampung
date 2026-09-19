@@ -241,7 +241,8 @@
 
                 <div class="flex items-center gap-4">
                     <div class="relative" id="notif-wrapper">
-                        <button onclick="toggleNotifications(event)" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 relative">
+                        <!-- Panggilan fungsi disesuaikan: toggleNotifications(event) & markAllNotificationsAsRead() -->
+                        <button onclick="toggleNotifications(event)" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 relative focus:outline-none transition-all">
                             <i class="fa-regular fa-bell text-lg"></i>
                             <span id="notif-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white hidden"></span>
                         </button>
@@ -249,14 +250,18 @@
                         <div id="notif-popover" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200/80 p-4 z-50">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
                                 <h4 class="font-bold text-xs text-slate-800">Notifikasi Sistem</h4>
-                                <span id="notif-count-text" class="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">0 Baru</span>
+                                <div class="flex items-center gap-2">
+                                    <span id="notif-count-text" class="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">0 Baru</span>
+                                    <!-- Tombol Tandai Sudah Dibaca -->
+                                    <button onclick="markAllNotificationsAsRead()" class="text-[10px] text-slate-400 hover:text-blue-600 transition-colors">Tandai Dibaca</button>
+                                </div>
                             </div>
                             <div id="notif-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                                 <p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>
                             </div>
                         </div>
                     </div>
-
+                
                     <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
                         <div class="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm" id="user-avatar">
                             US
@@ -387,11 +392,14 @@
                         <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Input Lembur Karyawan</h1>
                         <p class="text-xs text-slate-500 mt-0.5">Formulir Pengajuan Lembur Resmi - DSO Lampung</p>
                     </div>
-
+                
                     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 relative overflow-hidden">
                         <div class="absolute top-0 left-0 right-0 h-1.5 bg-blue-600"></div>
-
+                
                         <form id="overtime-form" onsubmit="handleOvertimeSubmit(event)" class="space-y-6">
+                            <!-- INPUT HIDDEN UNTUK NAMA USER LOGGED-IN -->
+                            <input type="hidden" id="form-nama">
+                
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 mb-3">Cabang (Kode BA) <span class="text-rose-500">*</span></label>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -417,18 +425,18 @@
                                     </label>
                                 </div>
                             </div>
-
+                
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 mb-1">NPK <span class="text-rose-500">*</span></label>
                                 <p class="text-[11px] text-slate-400 mb-2">Tidak perlu 0 di depan, Contoh: 55618</p>
                                 <input type="text" id="form-npk" required placeholder="Jawaban Anda" oninput="checkDailySubmissionLock()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
                             </div>
-
+                
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 mb-2">Tanggal Lembur <span class="text-rose-500">*</span></label>
                                 <input type="date" id="form-tanggal" required onchange="checkDailySubmissionLock()" class="w-full sm:w-1/2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
                             </div>
-
+                
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 mb-3">Jenis Pekerjaan <span class="text-rose-500">*</span></label>
                                 <div class="space-y-2">
@@ -471,7 +479,7 @@
                                     <input type="text" id="form-pekerjaan-custom" placeholder="Sebutkan pekerjaan lain..." class="hidden ml-7 w-full sm:w-2/3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                                 </div>
                             </div>
-
+                
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-800 mb-1">Jam Lembur (dari) <span class="text-rose-500">*</span></label>
@@ -484,7 +492,7 @@
                                     <input type="text" readonly onclick="openAnalogClock('form-jam-selesai')" id="form-jam-selesai" required value="20:00" onchange="calculateFormDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                                 </div>
                             </div>
-
+                
                             <div id="form-duration-preview" class="p-4 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs text-blue-800">
                                 <div class="flex items-center gap-2">
                                     <i class="fa-solid fa-clock text-blue-600"></i>
@@ -492,7 +500,7 @@
                                 </div>
                                 <span id="calculated-duration-text" class="font-bold text-blue-900">0,0 Jam</span>
                             </div>
-
+                
                             <div id="lock-warning-banner" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-3">
                                 <i class="fa-solid fa-lock text-amber-600 text-lg"></i>
                                 <div>
@@ -500,7 +508,7 @@
                                     <p class="text-[11px] text-amber-700 mt-0.5">Anda sudah mengirimkan 1 pengajuan lembur pada tanggal ini. Hanya diperbolehkan mengisi 1x sehari.</p>
                                 </div>
                             </div>
-
+                
                             <button type="submit" id="btn-submit-request" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-paper-plane"></i>
                                 <span>Kirim Pengajuan Lembur</span>
@@ -1807,36 +1815,76 @@
             notifications = [];
             if (!currentUser) return;
             
+            // 1. Ambil daftar ID notifikasi yang sudah dibaca dari localStorage
+            let readNotifIds = [];
+            try {
+                readNotifIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+            } catch (e) {
+                readNotifIds = [];
+            }
+            
             if (currentUser.role === 'admin') {
+                // ADMIN: Ambil daftar pengajuan yang statusnya Pending
                 const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
+                
                 pendingList.forEach(item => {
                     notifications.push({
                         id: item.id,
                         title: 'Pengajuan Lembur Masuk',
-                        message: `${item.nama} (${item.npk}) mengajukan lembur pada ${item.tanggal}.`,
+                        message: `${item.nama || 'Karyawan'} (${item.npk}) mengajukan lembur pada ${item.tanggal}.`,
                         time: 'Menunggu Persetujuan',
-                        read: false
+                        read: readNotifIds.includes(item.id) // Check status dari localStorage
                     });
                 });
             } else {
+                // KARYAWAN: Ambil pengajuan yang sudah di-ACC/Ditolak milik NPK-nya
                 const curNpk = currentUser.npk ? currentUser.npk.toString().trim() : '';
-                const myResponses = overtimeRequests.filter(r => 
-                    (r.npk || '').toString().trim() === curNpk && (r.status === 'Approved' || r.status === 'Rejected' || r.status === 'Diterima' || r.status === 'Ditolak')
-                );
+                const myResponses = overtimeRequests.filter(r => {
+                    const isMyNpk = (r.npk || '').toString().trim() === curNpk;
+                    const st = (r.status || '').toString().toLowerCase();
+                    return isMyNpk && ['approved', 'rejected', 'diterima', 'ditolak'].includes(st);
+                });
+        
                 myResponses.forEach(item => {
-                    let titleText = 'Lembur Disetujui';
-                    if (item.status === 'Rejected' || item.status === 'Ditolak') titleText = 'Lembur Ditolak';
-
+                    const stLower = (item.status || '').toString().toLowerCase();
+                    const isApproved = stLower === 'approved' || stLower === 'diterima';
+                    const titleText = isApproved ? 'Lembur Disetujui' : 'Lembur Ditolak';
+                    const statusLabel = isApproved ? 'diterima' : 'ditolak';
+        
                     notifications.push({
                         id: item.id,
                         title: titleText,
-                        message: `Pengajuan tanggal ${item.tanggal} (${item.durasiHours} jam) telah di-${item.status.toLowerCase()} oleh Admin.`,
-                        time: item.status,
-                        read: false
+                        message: `Pengajuan tanggal ${item.tanggal} (${Number(item.durasiHours || 0).toFixed(1).replace('.', ',')} jam) telah di-${statusLabel} oleh Admin.`,
+                        time: isApproved ? 'Diterima' : 'Ditolak',
+                        read: readNotifIds.includes(item.id) // Check status dari localStorage
                     });
                 });
             }
+        
+            // 2. Perbarui badge angka & indikator titik merah di UI
             updateNotifBadge();
+        }
+        
+        // FUNGSI UNTUK TANDAI SEMUA/SALAH SATU NOTIFIKASI SUDAH DIBACA (Dipanggil saat lonceng/modal diklik)
+        function markNotificationAsRead(notifId) {
+            let readNotifIds = [];
+            try {
+                readNotifIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+            } catch (e) {
+                readNotifIds = [];
+            }
+        
+            if (notifId) {
+                if (!readNotifIds.includes(notifId)) readNotifIds.push(notifId);
+            } else {
+                // Jika tidak ada parameter ID, tandai SEMUA notifikasi saat ini sebagai terbaca
+                notifications.forEach(n => {
+                    if (!readNotifIds.includes(n.id)) readNotifIds.push(n.id);
+                });
+            }
+        
+            localStorage.setItem('read_notif_ids', JSON.stringify(readNotifIds));
+            generateDynamicNotifications(); // Re-render notifikasi
         }
 
         function populateYearFilter() {
@@ -2335,8 +2383,17 @@
         
         function toggleEditCustomPekerjaan(show) {
             const customInput = document.getElementById('edit-pekerjaan-custom');
-            if (show) customInput.classList.remove('hidden');
-            else customInput.classList.add('hidden');
+            if (!customInput) return;
+        
+            if (show) {
+                customInput.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                customInput.required = false;
+                customInput.value = ''; // Hapus teks jika pengguna batal memilih opsi "Yang lain"
+            }
         }
 
         function calculateEditDuration() {
@@ -3278,56 +3335,96 @@
             }
         }
 
+        // 1. Toggle Popover & Tandai Dibaca saat dibuka
         function toggleNotifications(e) {
             if (e) e.stopPropagation();
             const popover = document.getElementById('notif-popover');
-            const isOpening = popover.classList.contains('hidden');
-            popover.classList.toggle('hidden');
-
-            if (isOpening) {
-                notifications.forEach(n => n.read = true);
-                updateNotifBadge();
+            if (!popover) return;
+        
+            const isHidden = popover.classList.contains('hidden');
+            if (isHidden) {
+                popover.classList.remove('hidden');
+                renderNotifList(); // Render daftar notifikasi terbaru
+                markAllNotificationsAsRead(); // Tandai bahwa notif sudah dilihat
+            } else {
+                popover.classList.add('hidden');
             }
         }
-
-        document.addEventListener('click', function(e) {
+        
+        // 2. Render Daftar Notifikasi di Popover
+        function renderNotifList() {
+            const listEl = document.getElementById('notif-list');
+            const countEl = document.getElementById('notif-count-text');
+            if (!listEl) return;
+        
+            const unreadCount = notifications.filter(n => !n.read).length;
+            if (countEl) countEl.innerText = `${unreadCount} Baru`;
+        
+            if (notifications.length === 0) {
+                listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>`;
+                return;
+            }
+        
+            listEl.innerHTML = notifications.map(n => `
+                <div class="p-2.5 ${n.read ? 'bg-slate-50/50' : 'bg-blue-50/30'} border border-slate-100 rounded-xl transition-all">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-bold text-[11px] ${n.read ? 'text-slate-600' : 'text-blue-700'}">${n.title}</span>
+                        <span class="text-[9px] text-slate-400">${n.time}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 leading-snug">${n.message}</p>
+                </div>
+            `).join('');
+        }
+        
+        // 3. Update Badge Merah di Lonceng
+        function updateNotifBadge() {
+            const badge = document.getElementById('notif-badge');
+            const countEl = document.getElementById('notif-count-text');
+            
+            // Ambil ID notifikasi yang sudah dibaca dari localStorage
+            let readIds = [];
+            try { readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); } catch (e) {}
+        
+            const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
+        
+            if (badge) {
+                if (unreadCount > 0) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (countEl) countEl.innerText = `${unreadCount} Baru`;
+        }
+        
+        // 4. Simpan Status Sudah Dibaca ke LocalStorage
+        function markAllNotificationsAsRead() {
+            let readIds = [];
+            try { readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); } catch (e) {}
+        
+            notifications.forEach(n => {
+                if (!readIds.includes(n.id)) readIds.push(n.id);
+                n.read = true;
+            });
+        
+            localStorage.setItem('read_notif_ids', JSON.stringify(readIds));
+            
+            // Sembunyikan badge titik merah
+            const badge = document.getElementById('notif-badge');
+            if (badge) badge.classList.add('hidden');
+            
+            const countEl = document.getElementById('notif-count-text');
+            if (countEl) countEl.innerText = `0 Baru`;
+        }
+        
+        // Tutup popover jika pengguna mengklik di luar area notifikasi
+        document.addEventListener('click', function (e) {
             const wrapper = document.getElementById('notif-wrapper');
             const popover = document.getElementById('notif-popover');
             if (wrapper && popover && !wrapper.contains(e.target)) {
                 popover.classList.add('hidden');
             }
         });
-
-        function updateNotifBadge() {
-            const list = document.getElementById('notif-list');
-            const badge = document.getElementById('notif-badge');
-            const countText = document.getElementById('notif-count-text');
-
-            const unreadCount = notifications.filter(n => !n.read).length;
-
-            if (unreadCount > 0) {
-                badge.classList.remove('hidden');
-                countText.innerText = `${unreadCount} Baru`;
-            } else {
-                badge.classList.add('hidden');
-                countText.innerText = '0 Baru';
-            }
-
-            if (notifications.length > 0) {
-                list.innerHTML = notifications.map(n => `
-                    <div class="p-2.5 ${n.read ? 'bg-slate-50 border-slate-200' : 'bg-blue-50/70 border-blue-100'} border rounded-xl transition-all">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-xs text-slate-800">${n.title}</span>
-                            ${!n.read ? '<span class="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>' : ''}
-                        </div>
-                        <p class="text-[11px] text-slate-600 mt-0.5">${n.message}</p>
-                        <span class="text-[9px] text-slate-400 mt-1 block">${n.time}</span>
-                    </div>
-                `).join('');
-            } else {
-                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>`;
-            }
-        }
 
         function showCustomConfirm(options) {
             return new Promise((resolve) => {
