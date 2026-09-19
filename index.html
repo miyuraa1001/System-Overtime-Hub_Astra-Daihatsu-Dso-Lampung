@@ -1482,6 +1482,7 @@
         }
 
         function renderAllViews() {
+            updatePendingBadge();
             renderDashboardView();
             renderHistoryView();
             renderApprovalsView();
@@ -2286,6 +2287,18 @@
                 showToast("Gagal memproses Terima Semua: " + (res ? res.message : "Kesalahan server"), "error");
                 loadAllDataServer(); // Rollback jika gagal
             }
+        }
+
+        function updatePendingBadge() {
+            const badgePending = document.getElementById('badge-pending-count');
+            if (!badgePending) return;
+        
+            // Hitung semua data yang berstatus pending (case-insensitive)
+            const totalPending = overtimeRequests.filter(r => 
+                (r.status || '').toString().toLowerCase() === 'pending'
+            ).length;
+        
+            badgePending.innerText = totalPending;
         }
 
         
