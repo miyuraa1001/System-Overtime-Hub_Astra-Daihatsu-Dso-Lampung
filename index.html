@@ -364,14 +364,15 @@
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead>
+                               <thead>
                                     <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                                        <th class="py-3 px-5">Karyawan / NPK</th>
-                                        <th class="py-3 px-5">Cabang</th>
-                                        <th class="py-3 px-5">Tanggal</th>
-                                        <th class="py-3 px-5">Jam Lembur</th>
-                                        <th class="py-3 px-5">Pekerjaan</th>
-                                        <th class="py-3 px-5 text-center">Status</th>
+                                        <th class="py-3.5 px-5">Karyawan / NPK</th>
+                                        <th class="py-3.5 px-5">Cabang</th>
+                                        <th class="py-3.5 px-5">Tanggal</th>
+                                        <th class="py-3.5 px-5">Waktu Lembur</th>
+                                        <th class="py-3.5 px-5">Pekerjaan</th>
+                                        <th class="py-3.5 px-5 text-center">Status</th>
+                                        <th class="py-3.5 px-5 text-center">Aksi</th> <!-- Kolom Aksi -->
                                     </tr>
                                 </thead>
                                 <tbody id="dashboard-recent-table" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
@@ -1496,11 +1497,17 @@
             const tbody = document.getElementById('history-table-body');
             if (!tbody) return;
         
-            // Definisikan ulang status admin secara lokal agar aman dari error
+            // Definisikan status admin secara aman
             const userIsAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
-            const selCabang = typeof selectedCabang !== 'undefined' ? selectedCabang : 'D660';
-            const selTahun = typeof selectedTahun !== 'undefined' ? selectedTahun : new Date().getFullYear().toString();
-            const selBulan = typeof selectedBulan !== 'undefined' ? selectedBulan : 'ALL';
+            
+            // Ambil nilai filter dari dropdown jika ada
+            const elCabang = document.getElementById('filter-report-cabang');
+            const elTahun = document.getElementById('filter-report-tahun');
+            const elBulan = document.getElementById('filter-report-bulan');
+        
+            const selCabang = elCabang ? elCabang.value : (typeof selectedCabang !== 'undefined' ? selectedCabang : 'D660');
+            const selTahun = elTahun ? elTahun.value : (typeof selectedTahun !== 'undefined' ? selectedTahun : new Date().getFullYear().toString());
+            const selBulan = elBulan ? elBulan.value : (typeof selectedBulan !== 'undefined' ? selectedBulan : 'ALL');
         
             const filteredHistory = overtimeRequests.filter(r => {
                 let reqYear = "", reqMonth = "";
@@ -1517,45 +1524,52 @@
                     }
                 }
         
-                const statusClean = (r.status || '').toString().toLowerCase();
-                const isFinished = ['diterima', 'approved', 'ditolak', 'rejected'].includes(statusClean);
-                
                 if (userIsAdmin) {
                     const isCabangMatch = (r.cabang || '').toUpperCase().includes(selCabang.toUpperCase());
-                    return isFinished && isCabangMatch && (reqYear === selTahun) && (selBulan === 'ALL' || reqMonth === selBulan);
+                    return isCabangMatch && (reqYear === selTahun) && (selBulan === 'ALL' || reqMonth === selBulan);
                 } else {
-                    return currentUser && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim() && isFinished;
+                    // UNTUK KARYAWAN: Tampilkan SEMUA status (Pending, Diterima, Ditolak) milik NPK-nya
+                    return currentUser && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
                 }
             });
         
             tbody.innerHTML = filteredHistory.map(r => {
-                const statusLower = (r.status || '').toLowerCase();
-                let badgeClass = 'bg-slate-100 text-slate-700';
-                let statusText = r.status || 'Pending';
-        
-                if (statusLower === 'diterima' || statusLower === 'approved') {
-                    badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-                    statusText = 'Diterima';
-                } else if (statusLower === 'ditolak' || statusLower === 'rejected') {
-                    badgeClass = 'bg-rose-50 text-rose-700 border border-rose-200';
-                    statusText = 'Ditolak';
-                }
+                const isPending = (r.status || '').toString().toLowerCase() === 'pending';
+                
+                // Gunakan getStatusBadge jika ada, atau buat badge manual jika tidak ada
+                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
+                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        (r.status || '').toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        (r.status || '').toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        'bg-amber-50 text-amber-700 border border-amber-200'
+                    }">
+                        ${r.status || 'Pending'}
+                    </span>
+                `;
         
                 return `
                     <tr class="hover:bg-slate-50/80 transition-all">
-                        <td class="py-3.5 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
+                        <td class="py-3.5 px-5 font-semibold">${r.nama || '-'} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
                         <td class="py-3.5 px-5">${r.cabang}</td>
                         <td class="py-3.5 px-5">${r.tanggal}</td>
                         <td class="py-3.5 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
                         <td class="py-3.5 px-5">${r.pekerjaan}</td>
+                        <td class="py-3.5 px-5 text-center">${badgeHTML}</td>
                         <td class="py-3.5 px-5 text-center">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}">
-                                ${statusText}
-                            </span>
+                            <div class="flex items-center justify-center gap-1.5">
+                                ${isPending ? `
+                                    <button onclick="openEditModal('${r.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Pengajuan">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button onclick="deleteRequest('${r.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Hapus Pengajuan">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : `<span class="text-[11px] text-slate-400 font-medium">Terkunci</span>`}
+                            </div>
                         </td>
                     </tr>
                 `;
-            }).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur.</td></tr>`;
+            }).join('') || `<tr><td colspan="7" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur.</td></tr>`;
         }
 
         // ==========================================
@@ -2113,10 +2127,13 @@
         }
 
         async function handleOvertimeSubmit(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             
             const submitBtn = document.getElementById('btn-submit-request');
-            if (submitBtn && submitBtn.disabled) return;
+            
+            // Kunci langsung di awal: Jika tombol sedang disabled / sedang proses, batalkan klik kedua!
+            if (!submitBtn || submitBtn.disabled) return;
+        
             const selectedCabang = document.querySelector('input[name="form-cabang"]:checked');
             const selectedPekerjaan = document.querySelector('input[name="form-pekerjaan"]:checked');
             
@@ -2135,51 +2152,65 @@
             const jamMulaiVal = document.getElementById('form-jam-mulai').value;
             const jamSelesaiVal = document.getElementById('form-jam-selesai').value;
             const npkVal = document.getElementById('form-npk').value.trim();
-            const durasiVal = calculateFormDuration() || 0;
+            const durasiVal = typeof calculateFormDuration === 'function' ? calculateFormDuration() : 0;
         
             if (!tanggalVal || !jamMulaiVal || !jamSelesaiVal || !npkVal) {
                 alert("Harap lengkapi semua data formulir lembur!");
                 return;
             }
         
+            // LANGSUNG LOCK TOMBOL SEBELUM PROSES ASYNC / CALLSERVER
+            submitBtn.disabled = true;
+            submitBtn.style.pointerEvents = 'none'; // Mencegah klik fisik tambahan
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim Pengajuan...';
+        
             const payload = {
                 cabang: selectedCabang.value,
                 npk: npkVal,
+                nama: currentUser ? (currentUser.nama || "") : "",
                 tanggal: tanggalVal,
                 jamMulai: jamMulaiVal,
                 jamSelesai: jamSelesaiVal,
-                durasiHours: durasiVal,
+                durasiHours: Number(durasiVal) || 0,
                 pekerjaan: pekerjaanVal
             };
         
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim Pengajuan...';
-            }
+            try {
+                const res = await callServer('submitOvertimeRequest', payload);
         
-            // Langsung panggil callServer tanpa fungsi perantara yang sering bikin error scope
-            const res = await callServer('submitOvertimeRequest', payload);
-        
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Pengajuan Lembur</span>';
-            }
-            
-            if (res && res.success) {
-                showToast(res.message, "success");
-                document.getElementById('overtime-form').reset();
-                
-                if (currentUser && currentUser.role !== 'admin') {
-                    document.getElementById('form-npk').value = currentUser.npk;
+                if (res && res.success) {
+                    showToast(res.message || "Pengajuan lembur berhasil dikirim!", "success");
+                    
+                    const formEl = document.getElementById('overtime-form');
+                    if (formEl) formEl.reset();
+                    
+                    document.getElementById('form-jam-mulai').value = "17:00";
+                    document.getElementById('form-jam-selesai').value = "20:00";
+                    
+                    if (currentUser && currentUser.role !== 'admin') {
+                        document.getElementById('form-npk').value = currentUser.npk;
+                    } else {
+                        document.getElementById('form-npk').value = '';
+                    }
+                    
+                    if (typeof calculateFormDuration === 'function') calculateFormDuration();
+                    
+                    // Reload data server agar pengajuan baru (Pending) langsung masuk ke History
+                    await loadAllDataServer();
+                    
+                    if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
+                    
+                    navigateTo('history'); // Pindah ke halaman history
                 } else {
-                    document.getElementById('form-npk').value = '';
+                    showToast("Gagal mengirim: " + (res ? res.message : "Terjadi kesalahan server"), "error");
                 }
-                
-                checkDailySubmissionLock();
-                loadAllDataServer();
-                navigateTo('history');
-            } else {
-                alert(res ? res.message : "Gagal mengirim pengajuan");
+            } catch (err) {
+                showToast("Error sistem: " + err.message, "error");
+            } finally {
+                // UNLOCK TOMBOL SETELAH PROSES SELESAI TOTAL
+                submitBtn.disabled = false;
+                submitBtn.style.pointerEvents = 'auto';
+                submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> <span>Kirim Pengajuan Lembur</span>';
             }
         }
 
