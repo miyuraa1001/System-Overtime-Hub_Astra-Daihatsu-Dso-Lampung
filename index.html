@@ -543,7 +543,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs text-slate-700">
-                                </tbody>
+                                </tbody>   
                             </table>
                         </div>
                     </div>
@@ -1249,6 +1249,45 @@
             }
         };
 
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 1. Tangkap parameter URL dengan aman ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlUser = urlParams.get('username');
+            const urlPass = urlParams.get('password');
+    
+            if (urlUser && urlPass) {
+                const userInput = document.getElementById('login-username');
+                const passInput = document.getElementById('login-password');
+                if (userInput && passInput) {
+                    userInput.value = decodeURIComponent(urlUser.replace(/\+/g, ' '));
+                    passInput.value = urlPass;
+                }
+            }
+    
+            // --- 2. Time picker universal yang aman dari error F12 ---
+            document.addEventListener('click', function(e) {
+                const timeInput = e.target.closest('input[type="time"]');
+                if (timeInput && typeof timeInput.showPicker === 'function') {
+                    try {
+                        timeInput.showPicker();
+                    } catch (err) {
+                        // Diabaikan jika browser membatasi
+                    }
+                }
+            });
+    
+            // --- 2. Kode pemilih waktu (time picker) universal yang kita buat sebelumnya ---
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'time') {
+                    if (typeof e.target.showPicker === 'function') {
+                        try {
+                            e.target.showPicker();
+                        } catch (err) {}
+                    }
+                }
+            });
+        });
+
         async function fetchFromBackend(action, payload = {}) {
             try {
                 // Cukup panggil endpoint internal Vercel
@@ -1270,6 +1309,7 @@
                 return { success: false, message: error.toString() };
             }
         }
+
 
         // ==========================================
         // 1. INISIALISASI SESI
@@ -1308,16 +1348,12 @@
             }
 
             setInterval(() => {
-                if (
-                    document
-                        .getElementById('login-screen')
-                        ?.classList
-                        .contains('hidden')
-                ) {
+                if (currentUser) {
                     loadAllDataServer();
                 }
             }, 10000);
-        }
+            
+        };
 
         // ==========================================
         // 2. SISTEM LOGIN & LOGOUT
@@ -1598,18 +1634,6 @@
             `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada aktivitas lembur tercatat.</td></tr>`;
         }
 
-        function normalizeArray(value) {
-            if (Array.isArray(value)) {
-                return value;
-            }
-        
-            if (value && typeof value === 'object') {
-                return Object.values(value);
-            }
-        
-            return [];
-        }
-
         // ==========================================
         // SINKRONISASI DATA UTAMA DARI SERVER
         // ==========================================
@@ -1626,11 +1650,11 @@
                 }
                 
                 if (resKaryawan && resKaryawan.success) {
-                    karyawanList = normalizeArray(resKaryawan?.data);
+                    karyawanList = resKaryawan.data || [];
                 }
 
                 if (resOvertime && resOvertime.success) {
-                    overtimeRequests = normalizeArray(resOvertime?.data);
+                    overtimeRequests = resOvertime.data || [];
                     
                     // PERBAIKAN: Urutkan berdasarkan timestamp (dari yang terbesar/terbaru ke terlama)
                     overtimeRequests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -1643,301 +1667,77 @@
             }
         }
 
-        function escapeHtml(value) {
-            return String(value ?? '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-        
-        function calculateDurationHours(start, end) {
-            if (!start || !end) {
-                return 0;
-            }
-        
-            const startParts = String(start).split(':');
-            const endParts = String(end).split(':');
-        
-            const startMinutes =
-                Number(startParts[0]) * 60 +
-                Number(startParts[1]);
-        
-            let endMinutes =
-                Number(endParts[0]) * 60 +
-                Number(endParts[1]);
-        
-            if (
-                !Number.isFinite(startMinutes) ||
-                !Number.isFinite(endMinutes)
-            ) {
-                return 0;
-            }
-        
-            if (endMinutes < startMinutes) {
-                endMinutes += 24 * 60;
-            }
-        
-            return (endMinutes - startMinutes) / 60;
-        }
-
         // ==========================================
-        // 3. RENDER DASHBOARD VIEW
+        // 4. RENDER HISTORY VIEW (RIWAYAT PRIBADI)
         // ==========================================
         function renderDashboardView() {
-            const isAdmin =
-                currentUser &&
-                String(currentUser.role || '').toLowerCase() === 'admin';
-        
-            const requests = Array.isArray(overtimeRequests)
-                ? overtimeRequests
-                : [];
-        
-            // Filter berdasarkan hak akses
-            let dashboardData = requests;
-        
+            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
+            
+            // 1. Filter awal berdasarkan hak akses (Admin vs Karyawan biasa)
+            let dashboardData = overtimeRequests;
             if (!isAdmin && currentUser && currentUser.npk) {
-                const currentNpk = String(currentUser.npk).trim();
-        
-                dashboardData = requests.filter(request =>
-                    String(request.npk || '').trim() === currentNpk
-                );
+                dashboardData = overtimeRequests.filter(r => (r.npk || '').toString().trim() === currentUser.npk.toString().trim());
             }
         
-            // Filter bulan dan tahun
+            // 2. Ambil nilai filter bulan & tahun (berikan pengaman jika elemen HTML-nya belum dibuat)
             const elBulan = document.getElementById('filter-dashboard-bulan');
             const elTahun = document.getElementById('filter-dashboard-tahun');
+            const selectedBulan = elBulan ? elBulan.value : 'ALL';
+            const selectedTahun = elTahun ? elTahun.value : new Date().getFullYear().toString();
         
-            const selectedBulan = elBulan
-                ? elBulan.value
-                : 'ALL';
-        
-            const selectedTahun = elTahun
-                ? elTahun.value
-                : String(new Date().getFullYear());
-        
-            const filteredData = dashboardData.filter(request => {
-                if (!request.tanggal) {
-                    return false;
-                }
-        
-                const tanggal = String(request.tanggal).trim();
-                const parts = tanggal.includes('-')
-                    ? tanggal.split('-')
-                    : tanggal.split('/');
-        
-                if (parts.length < 2) {
-                    return false;
-                }
-        
-                let tahun;
-                let bulan;
-        
-                // Format YYYY-MM-DD
-                if (parts[0].length === 4) {
-                    tahun = parts[0];
-                    bulan = Number(parts[1]);
-                } else {
-                    // Fallback format DD/MM/YYYY
-                    tahun = parts[2];
-                    bulan = Number(parts[1]);
-                }
-        
-                if (selectedBulan === 'ALL') {
-                    return tahun === selectedTahun;
-                }
-        
-                return (
-                    tahun === selectedTahun &&
-                    bulan === Number(selectedBulan)
-                );
+            // 3. Saring data berdasarkan filter bulan & tahun
+            let filteredData = dashboardData.filter(r => {
+                if (!r.tanggal) return false;
+                const parts = r.tanggal.split('-'); // format YYYY-MM-DD
+                const rTahun = parts[0];
+                const rBulan = parts[1];
+            
+                if (selectedBulan === 'ALL') return true; 
+            
+                // Menggunakan perbandingan string/angka yang aman
+                return Number(rBulan) === Number(selectedBulan) && rTahun === selectedTahun;
             });
         
-            const getStatus = request =>
-                String(request.status || '').toLowerCase();
-        
-            const isApproved = request => {
-                const status = getStatus(request);
-        
-                return (
-                    status === 'diterima' ||
-                    status === 'approved'
-                );
+            const isApproved = r => {
+                const s = (r.status || '').toString().toLowerCase();
+                return s === 'diterima' || s === 'approved';
+            };
+            const isPending = r => (r.status || '').toString().toLowerCase() === 'pending';
+            const isRejected = r => {
+                const s = (r.status || '').toString().toLowerCase();
+                return s === 'ditolak' || s === 'rejected';
             };
         
-            const isPending = request =>
-                getStatus(request) === 'pending';
+            // 4. Hitung KPI BERDASARKAN filteredData (bukan dashboardData mentah)
+            const totalHours = filteredData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
+            const pendingCount = filteredData.filter(isPending).length;
+            const approvedCount = filteredData.filter(isApproved).length;
+            const rejectedCount = filteredData.filter(isRejected).length;
         
-            const isRejected = request => {
-                const status = getStatus(request);
+            // Update elemen DOM KPI...
+            document.getElementById('kpi-total-hours').innerText = `${totalHours.toFixed(1).replace('.', ',')} Jam`;
+            document.getElementById('kpi-pending-count').innerText = `${pendingCount} Pending`;
+            document.getElementById('kpi-approved-count').innerText = `${approvedCount} Diterima`;
+            document.getElementById('kpi-rejected-count').innerText = `${rejectedCount} Ditolak`;
         
-                return (
-                    status === 'ditolak' ||
-                    status === 'rejected'
-                );
-            };
-        
-            // Hitung KPI berdasarkan data yang sudah difilter
-            const totalHours = filteredData.reduce((total, request) => {
-                return total + (
-                    isApproved(request)
-                        ? Number(request.durasiHours) || 0
-                        : 0
-                );
-            }, 0);
-        
-            const pendingCount =
-                filteredData.filter(isPending).length;
-        
-            const approvedCount =
-                filteredData.filter(isApproved).length;
-        
-            const rejectedCount =
-                filteredData.filter(isRejected).length;
-        
-            // Update KPI dengan aman
-            const elTotalHours =
-                document.getElementById('kpi-total-hours');
-        
-            const elPending =
-                document.getElementById('kpi-pending-count');
-        
-            const elApproved =
-                document.getElementById('kpi-approved-count');
-        
-            const elRejected =
-                document.getElementById('kpi-rejected-count');
-        
-            if (elTotalHours) {
-                elTotalHours.innerText =
-                    `${totalHours.toFixed(1).replace('.', ',')} Jam`;
+            // Render tabel menggunakan filteredData
+            const tbody = document.getElementById('dashboard-recent-table');
+            if (tbody) {
+                tbody.innerHTML = filteredData.slice(0, 5).map(r => `
+                    <tr class="hover:bg-slate-50/80 transition-all">
+                        <td class="py-3 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
+                        <td class="py-3 px-5">${r.cabang}</td>
+                        <td class="py-3 px-5">${r.tanggal}</td>
+                        <td class="py-3 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
+                        <td class="py-3 px-5">${r.pekerjaan}</td>
+                        <td class="py-3 px-5 text-center">${getStatusBadge(r.status)}</td>
+                    </tr>
+                `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada pengajuan lembur yang tercatat pada periode ini.</td></tr>`;
             }
-        
-            if (elPending) {
-                elPending.innerText =
-                    `${pendingCount} Pending`;
-            }
-        
-            if (elApproved) {
-                elApproved.innerText =
-                    `${approvedCount} Diterima`;
-            }
-        
-            if (elRejected) {
-                elRejected.innerText =
-                    `${rejectedCount} Ditolak`;
-            }
-        
-            // Badge pending admin
-            const badgePending =
-                document.getElementById('badge-pending-count');
-        
-            if (badgePending) {
-                const totalPendingAdmin =
-                    requests.filter(isPending).length;
-        
-                badgePending.innerText =
-                    totalPendingAdmin;
-            }
-        
-            // Render tabel aktivitas terkini
-            const tbody =
-                document.getElementById('dashboard-recent-table');
-        
-            if (!tbody) {
-                return;
-            }
-        
-            const rows = filteredData
-                .slice()
-                .sort((a, b) => {
-                    const timeA = Number(a.timestamp) || Number(a.id) || 0;
-                    const timeB = Number(b.timestamp) || Number(b.id) || 0;
-        
-                    return timeB - timeA;
-                })
-                .slice(0, 5)
-                .map(request => {
-                    const duration =
-                        Number(request.durasiHours) || 0;
-        
-                    const statusBadge =
-                        typeof getStatusBadge === 'function'
-                            ? getStatusBadge(request.status)
-                            : String(request.status || 'Pending');
-        
-                    return `
-                        <tr class="hover:bg-slate-50/80 transition-all">
-                            <td class="py-3 px-5 font-semibold">
-                                ${escapeHtml(request.nama || '-')}
-                                <span class="text-slate-400 font-normal">
-                                    (${escapeHtml(request.npk || '-')})
-                                </span>
-                            </td>
-        
-                            <td class="py-3 px-5">
-                                ${escapeHtml(request.cabang || '-')}
-                            </td>
-        
-                            <td class="py-3 px-5">
-                                ${escapeHtml(request.tanggal || '-')}
-                            </td>
-        
-                            <td class="py-3 px-5 font-mono">
-                                ${escapeHtml(request.jamMulai || '-')}
-                                -
-                                ${escapeHtml(request.jamSelesai || '-')}
-                                (${duration.toFixed(1).replace('.', ',')}j)
-                            </td>
-        
-                            <td class="py-3 px-5">
-                                ${escapeHtml(request.pekerjaan || '-')}
-                            </td>
-        
-                            <td class="py-3 px-5 text-center">
-                                ${statusBadge}
-                            </td>
-        
-                            <td class="py-3 px-5 text-center">
-                                ${
-                                    typeof openEditModal === 'function'
-                                        ? `
-                                            <button
-                                                type="button"
-                                                onclick="openEditModal('${escapeHtml(request.id || '')}')"
-                                                class="text-blue-600 hover:text-blue-800"
-                                                title="Edit Pengajuan">
-                                                <i class="fa-solid fa-pen-to-square"></i>
-                                            </button>
-                                          `
-                                        : ''
-                                }
-                            </td>
-                        </tr>
-                    `;
-                })
-                .join('');
-        
-            tbody.innerHTML = rows || `
-                <tr>
-                    <td
-                        colspan="7"
-                        class="text-center py-6 text-slate-400">
-                        Belum ada pengajuan lembur yang tercatat
-                        pada periode ini.
-                    </td>
-                </tr>
-            `;
         }
 
         setInterval(function() {
-            const loginScreen = document.getElementById('login-screen');
-        
-            if (
-                loginScreen &&
-                loginScreen.classList.contains('hidden')
-            ) {
+            if (document.getElementById('login-screen').classList.contains('hidden')) {
                 loadAllDataServer();
             }
         }, 45000);
@@ -2115,24 +1915,16 @@
         }
 
         function toggleSubmenu(id) {
-            const submenu = document.getElementById(id);
-        
-            if (!submenu) return;
-        
-            const arrowMap = {
-                'my-overtime-submenu': 'my-overtime-arrow'
-            };
-        
-            const arrow = document.getElementById(
-                arrowMap[id] || `arrow-${id}`
-            );
-        
-            const isHidden = submenu.classList.contains('hidden');
-        
-            submenu.classList.toggle('hidden', !isHidden);
-        
-            if (arrow) {
-                arrow.classList.toggle('rotate-180', isHidden);
+            const el = document.getElementById(id);
+            const arrow = document.getElementById('arrow-' + id); // Sesuaikan dengan id elemen panah Anda
+            if (el) {
+                if (el.classList.contains('hidden')) {
+                    el.classList.remove('hidden');
+                    if (arrow) arrow.classList.add('rotate-180');
+                } else {
+                    el.classList.add('hidden');
+                    if (arrow) arrow.classList.remove('rotate-180');
+                }
             }
         }
 
@@ -2167,36 +1959,65 @@
         }
 
         function handleGlobalSearch(query) {
-            const searchQuery = String(query || '')
-                .toLowerCase()
-                .trim();
+            const q = (query || '').toLowerCase().trim();
+            
+            // Pastikan variabel activePage aman dari error reference
+            const currentPage = typeof activePage !== 'undefined' ? activePage : '';
         
-            const selectors = [
-                '#history-table-body tr',
-                '#approvals-table-body tr',
-                '#table-rekapitulasi-body tr',
-                '#table-claim-payroll-body tr',
-                '#dashboard-recent-table tr',
-                '#karyawan-table-body tr'
-            ];
+            // 1. Jika sedang di menu Data Karyawan
+            if (currentPage === 'karyawan') {
+                if (typeof renderKaryawanTable === 'function') {
+                    renderKaryawanTable();
+                }
+                return;
+            }
         
-            selectors.forEach(selector => {
-                document.querySelectorAll(selector).forEach(row => {
-                    const text = String(row.textContent || '')
-                        .toLowerCase();
-        
-                    row.style.display =
-                        !searchQuery || text.includes(searchQuery)
-                            ? ''
-                            : 'none';
+            // 2. Jika sedang di menu History
+            if (currentPage === 'history') {
+                const rows = document.querySelectorAll('#history-table-body tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
                 });
-            });
+                return;
+            }
         
-            localStorage.setItem(
-                'last_global_search',
-                String(query || '')
-            );
+            // 3. Jika sedang di menu Approvals
+            if (currentPage === 'approvals') {
+                const rows = document.querySelectorAll('#approvals-table-body tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+                return;
+            }
+        
+            // 4. Jika sedang di menu Reports / Payroll
+            if (currentPage === 'reports') {
+                const rowsRekap = document.querySelectorAll('#table-rekapitulasi-body tr');
+                rowsRekap.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+        
+                const rowsClaim = document.querySelectorAll('#table-claim-payroll-body tr');
+                rowsClaim.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+                return;
+            }
+        
+            // 5. Jika sedang di menu Dashboard
+            if (currentPage === 'dashboard') {
+                const rows = document.querySelectorAll('#dashboard-recent-table tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(q) ? '' : 'none';
+                });
+            }
         }
+
         // Efek header transparan + blur dinamis saat konten di-scroll
         function handleHeaderScroll() {
             const scrollArea = document.getElementById('main-scroll-area');
@@ -2249,53 +2070,17 @@
         }
 
         function calculateFormDuration() {
-            const startInput = document.getElementById('form-jam-mulai');
-            const endInput = document.getElementById('form-jam-selesai');
-            const output = document.getElementById('calculated-duration-text');
-        
-            if (!startInput || !endInput || !output) {
-                return 0;
+            const jm = document.getElementById('form-jam-mulai').value;
+            const js = document.getElementById('form-jam-selesai').value;
+            if (jm && js) {
+                const start = new Date(`2000-01-01T${jm}:00`);
+                let end = new Date(`2000-01-01T${js}:00`);
+                if (end < start) end = new Date(`2000-01-02T${js}:00`);
+                const diffHours = (end - start) / (1000 * 60 * 60);
+                document.getElementById('calculated-duration-text').innerText = `${diffHours.toFixed(1).replace('.', ',')} Jam`;
+                return diffHours;
             }
-        
-            const startValue = startInput.value;
-            const endValue = endInput.value;
-        
-            if (!startValue || !endValue) {
-                output.textContent = '0,0 Jam';
-                return 0;
-            }
-        
-            const [startHour, startMinute] = startValue
-                .split(':')
-                .map(Number);
-        
-            const [endHour, endMinute] = endValue
-                .split(':')
-                .map(Number);
-        
-            if (
-                !Number.isFinite(startHour) ||
-                !Number.isFinite(startMinute) ||
-                !Number.isFinite(endHour) ||
-                !Number.isFinite(endMinute)
-            ) {
-                output.textContent = '0,0 Jam';
-                return 0;
-            }
-        
-            let startTotal = startHour * 60 + startMinute;
-            let endTotal = endHour * 60 + endMinute;
-        
-            if (endTotal < startTotal) {
-                endTotal += 24 * 60;
-            }
-        
-            const duration = (endTotal - startTotal) / 60;
-        
-            output.textContent =
-                `${duration.toFixed(1).replace('.', ',')} Jam`;
-        
-            return duration;
+            return 0;
         }
 
         function checkDailySubmissionLock() {
@@ -2775,16 +2560,10 @@
                     let dur = Number(r.durasiHours) || 0;
         
                     // Jika mode Hasil Adjust aktif, ambil durasi item spesifik
-                    if (reportModeRekap === 'adjust') {
-                        const adjustment =
-                            findAdjustmentForRequest(r);
-                    
-                        if (adjustment) {
-                            dur =
-                                Number(
-                                    adjustment.durasiHours ??
-                                    adjustment.durasi
-                                ) || 0;
+                    if (reportModeRekap === 'adjust' && adjustmentsMap[npkKey]) {
+                        const adjData = adjustmentsMap[npkKey];
+                        if (adjData.items && adjData.items[r.id]) {
+                            dur = Number(adjData.items[r.id].durasiHours || adjData.items[r.id].durasi) || 0;
                         }
                     }
         
@@ -2822,12 +2601,7 @@
                         });
         
                         const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
-                        const isAdjusted =
-                            Boolean(
-                                adjustmentsMap?.[
-                                    String(emp.npk || '').trim()
-                                ]
-                            );
+                        const isAdjusted = !!adjustmentsMap[emp.npk];
         
                         gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
         
@@ -2903,47 +2677,6 @@
                     `;
                 }).join('') || `<tr><td colspan="${isAdmin ? 10 : 11}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
             }
-        }
-
-        function openAdjustModal(npk) {
-            const target = String(npk || '').trim();
-            if (!target) return;
-        
-            const requests = Array.isArray(overtimeRequests) ? overtimeRequests : [];
-            const targetRequests = requests.filter(r => String(r.npk || '').trim() === target);
-        
-            if (!targetRequests.length) return;
-        
-            const row = targetRequests[0];
-        
-            const originalStart = row.jamMulai || '17:00';
-            const originalEnd = row.jamSelesai || '20:00';
-        
-            const existingAdjustment = findAdjustmentForRequest(row);
-        
-            const adjustedStart = existingAdjustment?.jamMulai || originalStart;
-            const adjustedEnd = existingAdjustment?.jamSelesai || originalEnd;
-        
-            currentAdjustTarget = {
-                npk: target,
-                nama: row.nama || '-',
-                requests: targetRequests,
-                originalStart,
-                originalEnd,
-                adjustedStart,
-                adjustedEnd
-            };
-        
-            // isi input modal
-            const modal = document.getElementById('adjust-modal');
-            if (modal) modal.classList.remove('hidden');
-        
-            // contoh:
-            const startInput = document.getElementById('adjust-start-input');
-            const endInput = document.getElementById('adjust-end-input');
-        
-            if (startInput) startInput.value = adjustedStart;
-            if (endInput) endInput.value = adjustedEnd;
         }
                 
         // ==========================================
@@ -3167,94 +2900,38 @@
         }
         
         // 1. FUNGSI UNTUK MEMETAKAN DATA ADJUST DARI DATABASE GOOGLE SHEETS
-       async function fetchServerAdjustments() {
+        async function fetchServerAdjustments() {
             try {
-                const response =
-                    await callServer('getAdjustmentsData');
+                // Panggil endpoint Apps Script / Backend Anda
+                const response = await callServer('getAdjustmentsData'); 
+                
+                if (response && response.success && response.data) {
+                    adjustmentsMap = {}; // Reset map
+                    
+                    // Format respons database sheet disesuaikan ke struktur internal
+                    // Asumsi response.data berisi array item adjustment dari sheet
+                    response.data.forEach(item => {
+                        const npkKey = (item.npk || '').toString().trim();
+                        const reqId = item.id || item.request_id;
         
-                if (
-                    !response ||
-                    !response.success ||
-                    !response.data
-                ) {
-                    adjustmentsMap = {};
-                    return;
+                        if (!adjustmentsMap[npkKey]) {
+                            adjustmentsMap[npkKey] = { items: {} };
+                        }
+        
+                        if (reqId) {
+                            const durasi = Number(item.durasiHours || item.durasi) || 0;
+                            adjustmentsMap[npkKey].items[reqId] = {
+                                jamMulai: item.jamMulai || item.jam_mulai,
+                                jamSelesai: item.jamSelesai || item.jam_selesai,
+                                durasiHours: durasi
+                            };
+                        }
+                    });
                 }
-        
-                const data =
-                    Array.isArray(response.data)
-                        ? response.data
-                        : Object.values(response.data);
-        
-                adjustmentsMap = {};
-        
-                data.forEach(item => {
-                    if (!item) {
-                        return;
-                    }
-        
-                    const npkKey =
-                        String(
-                            item.npk ??
-                            item.NPK ??
-                            ''
-                        ).trim();
-        
-                    if (!npkKey) {
-                        return;
-                    }
-        
-                    const requestId =
-                        String(
-                            item.id ??
-                            item.request_id ??
-                            item.requestId ??
-                            ''
-                        ).trim();
-        
-                    if (!adjustmentsMap[npkKey]) {
-                        adjustmentsMap[npkKey] = {
-                            items: {}
-                        };
-                    }
-        
-                    if (!requestId) {
-                        return;
-                    }
-        
-                    adjustmentsMap[npkKey].items[requestId] = {
-                        id: requestId,
-                        tanggal:
-                            item.tanggal ??
-                            item.date ??
-                            '',
-                        jamMulai:
-                            item.jamMulai ??
-                            item.jam_mulai ??
-                            '',
-                        jamSelesai:
-                            item.jamSelesai ??
-                            item.jam_selesai ??
-                            '',
-                        durasiHours:
-                            Number(
-                                item.durasiHours ??
-                                item.durasi_hours ??
-                                item.durasi ??
-                                0
-                            ) || 0
-                    };
-                });
-            } catch (error) {
-                console.error(
-                    'Gagal mengambil adjustment:',
-                    error
-                );
-        
-                adjustmentsMap = {};
-            }
-        
-            if (typeof renderReportsView === 'function') {
+            } catch (e) {
+                console.warn("Gagal menarik data adjustment dari server:", e);
+            } finally {
+                // Setelah data diambil, wajib panggil renderReportsView()
                 renderReportsView();
             }
         }
@@ -3264,38 +2941,21 @@
             reportModeRekap = mode;
             rekapViewMode = mode;
         
-            const btnAsli =
-                document.getElementById('btn-view-asli');
-        
-            const btnAdjust =
-                document.getElementById('btn-view-adjust');
+            const btnAsli = document.getElementById('btn-view-asli');
+            const btnAdjust = document.getElementById('btn-view-adjust');
         
             if (btnAsli && btnAdjust) {
-                btnAsli.className =
-                    mode === 'asli'
-                        ? 'px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap'
-                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
-        
-                btnAdjust.className =
-                    mode === 'adjust'
-                        ? 'px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap'
-                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
+                if (mode === 'asli') {
+                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+                } else {
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+                }
             }
         
-            // Render dulu agar tombol terasa langsung berubah
-            if (typeof renderReportsView === 'function') {
-                renderReportsView();
-            }
-        
-            // Ambil adjustment terbaru dari database
-            if (typeof fetchServerAdjustments === 'function') {
-                await fetchServerAdjustments();
-            }
-        
-            // Render ulang setelah data server masuk
-            if (typeof renderReportsView === 'function') {
-                renderReportsView();
-            }
+            // Ambil data terbaru dari server lalu update tabel
+            await fetchServerAdjustments();
         }
         
         // 3. FUNGSI SWITCH MODE LOG HARIAN
@@ -3303,35 +2963,20 @@
             reportModeLog = mode;
             claimViewMode = mode;
         
-            const btnAsli =
-                document.getElementById('btn-claim-view-asli');
-        
-            const btnAdjust =
-                document.getElementById('btn-claim-view-adjust');
+            const btnAsli = document.getElementById('btn-claim-view-asli');
+            const btnAdjust = document.getElementById('btn-claim-view-adjust');
         
             if (btnAsli && btnAdjust) {
-                btnAsli.className =
-                    mode === 'asli'
-                        ? 'px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap'
-                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
-        
-                btnAdjust.className =
-                    mode === 'adjust'
-                        ? 'px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap'
-                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
+                if (mode === 'asli') {
+                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+                } else {
+                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+                }
             }
         
-            if (typeof renderReportsView === 'function') {
-                renderReportsView();
-            }
-        
-            if (typeof fetchServerAdjustments === 'function') {
-                await fetchServerAdjustments();
-            }
-        
-            if (typeof renderReportsView === 'function') {
-                renderReportsView();
-            }
+            await fetchServerAdjustments();
         }
         
         // 4. PEMBAHARUAN FUNGSI RENDER TAMPILAN LAPORAN (REAL-TIME DATA & KONTROL PERSEN ADJUST)
@@ -3397,8 +3042,8 @@
                     employeeMap[npkKey].asliL2 += Math.max(0, durAsli - 1);
         
                     let durAdj = durAsli;
-                    if (adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && getAdjustmentForRequest(r)) {
-                        durAdj = Number(getAdjustmentForRequest(r).durasiHours) || 0;
+                    if (adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[r.id]) {
+                        durAdj = Number(adjustmentsMap[npkKey].items[r.id].durasiHours) || 0;
                     }
                     employeeMap[npkKey].adjL1 += Math.min(durAdj, 1);
                     employeeMap[npkKey].adjL2 += Math.max(0, durAdj - 1);
@@ -3470,8 +3115,8 @@
                     const npkKey = (r.npk || '').toString().trim();
                     let dur = Number(r.durasiHours) || 0;
         
-                    if (reportModeLog === 'adjust' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && getAdjustmentForRequest(r)) {
-                        dur = Number(getAdjustmentForRequest(r).durasiHours) || 0;
+                    if (reportModeLog === 'adjust' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[r.id]) {
+                        dur = Number(adjustmentsMap[npkKey].items[r.id].durasiHours) || 0;
                     }
         
                     const l1 = Math.min(dur, 1);
@@ -3495,82 +3140,69 @@
                 }).join('') || `<tr><td colspan="10" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
             }
         }
-
-        function findAdjustmentForRequest(request) {
-            if (!request) {
-                return null;
-            }
-        
-            const npkKey =
-                String(request.npk || '').trim();
-        
-            const requestId =
-                String(request.id || '').trim();
-        
-            const employeeAdjustment =
-                adjustmentsMap?.[npkKey];
-        
-            if (!employeeAdjustment) {
-                return null;
-            }
-        
-            const items =
-                employeeAdjustment.items || {};
-        
-            // 1. Cocokkan ID sebagai string
-            if (requestId && items[requestId]) {
-                return items[requestId];
-            }
-        
-            // 2. Cocokkan semua key tanpa masalah angka/string
-            const matchedById =
-                Object.entries(items).find(([key, value]) => {
-                    return String(key).trim() === requestId;
-                });
-        
-            if (matchedById) {
-                return matchedById[1];
-            }
-        
-            // 3. Fallback berdasarkan tanggal
-            const requestDate =
-                String(request.tanggal || '').trim();
-        
-            const matchedByDate =
-                Object.values(items).find(item => {
-                    return String(
-                        item.tanggal ||
-                        item.date ||
-                        ''
-                    ).trim() === requestDate;
-                });
-        
-            return matchedByDate?.[1] || matchedByDate || null;
-        }
         
         // ==========================================
         // KALKULASI LIVE ADJUSTMENT DI MODAL
         // ==========================================
         function calculateLiveAdjustment() {
-            const startInput = document.getElementById('adjust-start-input');
-            const endInput = document.getElementById('adjust-end-input');
+            if (!currentAdjustTarget) return;
         
-            if (!startInput || !endInput) return;
+            let totalJam = 0;
+            let totalL1 = 0;
+            let totalL2 = 0;
         
-            const start = startInput.value;
-            const end = endInput.value;
+            currentAdjustTarget.requests.forEach((r, i) => {
+                const jm = document.getElementById(`adj-start-${i}`).value;
+                const js = document.getElementById(`adj-end-${i}`).value;
+                let durasi = 0;
         
-            const startMinutes = parseInt(start.split(':')[0], 10) * 60 + parseInt(start.split(':')[1], 10);
-            let endMinutes = parseInt(end.split(':')[0], 10) * 60 + parseInt(end.split(':')[1], 10);
+                if (jm && js) {
+                    const start = new Date(`2000-01-01T${jm}:00`);
+                    let end = new Date(`2000-01-01T${js}:00`);
+                    if (end < start) end = new Date(`2000-01-02T${js}:00`);
+                    durasi = Math.max(0, (end - start) / (1000 * 60 * 60));
+                }
         
-            if (endMinutes < startMinutes) endMinutes += 24 * 60;
+                // Update teks durasi di baris tabel modal secara real-time
+                const durEl = document.getElementById(`adj-dur-${i}`);
+                if (durEl) durEl.innerText = durasi.toFixed(2).replace('.', ',');
         
-            const totalJam = (endMinutes - startMinutes) / 60;
-            const totalCell = document.getElementById('adjust-total-hours');
+                totalJam += durasi;
         
-            if (totalCell) {
-                totalCell.textContent = totalJam.toFixed(2).replace('.', ',');
-            }
+                // Aturan standar harian: Lembur 1 maksimal 1 jam, sisanya masuk Lembur 2
+                totalL1 += Math.min(durasi, 1);
+                totalL2 += Math.max(0, durasi - 1);
+            });
+        
+            const totalPoin = (totalL1 * 1.5) + (totalL2 * 2.7);
+            const estimasi = Math.round((currentAdjustTarget.gaji / 173) * totalPoin);
+        
+            // Hitung poin asli sebelumnya untuk perbandingan persentase
+            let origL1 = 0, origL2 = 0;
+            currentAdjustTarget.requests.forEach(r => {
+                const d = Number(r.durasiHours) || 0;
+                origL1 += Math.min(d, 1);
+                origL2 += Math.max(0, d - 1);
+            });
+            
+            const origPoin = (origL1 * 1.5) + (origL2 * 2.7);
+            const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
+        
+            // Render ke elemen ringkasan di dalam modal
+            document.getElementById('adjust-summary-total-jam').innerText = totalJam.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-l1').innerText = totalL1.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-l2').innerText = totalL2.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-poin').innerText = totalPoin.toFixed(2).replace('.', ',');
+            document.getElementById('adjust-summary-estimasi').innerText = `Rp ${estimasi.toLocaleString('id-ID')}`;
+            document.getElementById('adjust-summary-persen').innerText = `${percent}%`;
+        
+            // Simpan hasil komputasi sementara ke objek target
+            currentAdjustTarget.computed = {
+                lembur1: totalL1,
+                lembur2: totalL2,
+                lembur3: 0,
+                lembur4: 0
+            };
         }
 
         async function saveAdjustment() {
@@ -3829,26 +3461,6 @@
             });
         }
 
-        function getAdjustmentForRequest(request) {
-            if (!request) return null;
-        
-            const npkKey = String(request.npk ?? '').trim();
-            const requestId = String(request.id ?? '').trim();
-        
-            if (!npkKey || !requestId) {
-                return null;
-            }
-        
-            const employeeAdjustment = adjustmentsMap?.[npkKey];
-        
-            if (!employeeAdjustment?.items) {
-                return null;
-            }
-        
-            return employeeAdjustment.items[requestId] || null;
-        }
-                
-
         function closeCustomConfirm(result) {
             const modal = document.getElementById('custom-confirm-modal');
             const box = document.getElementById('custom-confirm-box');
@@ -3980,24 +3592,22 @@
 
         function openAnalogClock(inputId) {
             currentClockTargetInput = document.getElementById(inputId);
-        
             if (!currentClockTargetInput) return;
         
-            const rawValue = currentClockTargetInput.value || '17:00';
-            const [hour, minute] = String(rawValue).split(':').map(Number);
+            // Ambil nilai awal dari input jika ada
+            const val = currentClockTargetInput.value || "17:00";
+            const parts = val.split(":");
+            selectedHourVal = parts[0] || "17";
+            selectedMinuteVal = parts[1] || "00";
         
-            selectedHourValue = Number.isFinite(hour) ? hour : 17;
-            selectedMinuteValue = Number.isFinite(minute) ? minute : 0;
-        
-            renderAnalogClock();
-            const modal = document.getElementById('clock-modal');
-            if (modal) modal.classList.remove('hidden');
+            clockMode = "jam";
+            document.getElementById('analog-clock-modal').classList.remove('hidden');
+            renderClockFace();
+            updateClockDisplay();
         }
         
         function closeAnalogClock() {
-            const modal = document.getElementById('clock-modal');
-            if (modal) modal.classList.add('hidden');
-        
+            document.getElementById('analog-clock-modal').classList.add('hidden');
             currentClockTargetInput = null;
         }
         
@@ -4006,19 +3616,6 @@
             document.getElementById('btn-mode-jam').className = mode === 'jam' ? 'px-3 py-1.5 rounded-lg bg-blue-600 text-white transition-all' : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all';
             document.getElementById('btn-mode-menit').className = mode === 'menit' ? 'px-3 py-1.5 rounded-lg bg-blue-600 text-white transition-all' : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all';
             renderClockFace();
-        }
-
-        function renderAnalogClock() {
-            const hourLabel = document.getElementById('analog-hour-label');
-            const minuteLabel = document.getElementById('analog-minute-label');
-        
-            if (hourLabel) {
-                hourLabel.textContent = String(selectedHourValue).padStart(2, '0');
-            }
-        
-            if (minuteLabel) {
-                minuteLabel.textContent = String(selectedMinuteValue).padStart(2, '0');
-            }
         }
 
         function updateClockDisplay() {
@@ -4119,17 +3716,11 @@
         }
         
         function saveAnalogClock() {
-            if (!currentClockTargetInput) return;
-        
-            const newValue = `${String(selectedHourValue).padStart(2, '0')}:${String(selectedMinuteValue).padStart(2, '0')}`;
-        
-            currentClockTargetInput.value = newValue;
-            currentClockTargetInput.dispatchEvent(new Event('change', { bubbles: true }));
-        
-            if (typeof calculateLiveAdjustment === 'function') {
-                calculateLiveAdjustment();
+            if (currentClockTargetInput) {
+                currentClockTargetInput.value = `${selectedHourVal}:${selectedMinuteVal}`;
+                // Trigger event change jika diperlukan oleh sistem lain
+                currentClockTargetInput.dispatchEvent(new Event('change'));
             }
-        
             closeAnalogClock();
         }
         
@@ -4317,36 +3908,35 @@
         });
                 
         document.addEventListener('DOMContentLoaded', () => {
-            initRealtimeFilterDates();
-            populateDashboardYearFilter();
-            loadDashboardActivity();
+            flatpickr("input[type='time']", {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: "H:i",
+                time_24hr: true,
+                allowInput: true
+            });
+        });
         
-            const savedSearch =
-                localStorage.getItem('last_global_search');
-        
-            const searchInput =
-                document.getElementById('global-search-input');
-        
-            if (searchInput && savedSearch) {
-                searchInput.value = savedSearch;
-                handleGlobalSearch(savedSearch);
-            }
-        
-            const timeInputs =
-                document.querySelectorAll('input[type="time"]');
-        
-            if (typeof flatpickr === 'function') {
-                flatpickr(timeInputs, {
-                    enableTime: true,
-                    noCalendar: true,
-                    dateFormat: 'H:i',
-                    time_24hr: true,
-                    allowInput: true
+        document.addEventListener('DOMContentLoaded', () => {
+            // Sesuaikan ID dengan yang ada di HTML-mu: 'global-search-input'
+            const searchInput = document.getElementById('global-search-input');
+            
+            if (searchInput) {
+                // 1. Ambil memori pencarian terakhir dari localStorage
+                const savedSearch = localStorage.getItem('last_global_search');
+                if (savedSearch) {
+                    searchInput.value = savedSearch;
+                    handleGlobalSearch(savedSearch); // Panggil fungsi utama yang sudah kamu buat
+                }
+                
+                // 2. Setiap kali user mengetik, panggil fungsi handleGlobalSearch
+                searchInput.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    handleGlobalSearch(value); // Fungsi ini sudah otomatis menyimpan ke localStorage di dalamnya
                 });
             }
         });
-        
-        
+
         window.addEventListener('scroll', function() {
             const header = document.getElementById('main-header');
             if (!header) return;
