@@ -1651,6 +1651,36 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
+        
+        function calculateDurationHours(start, end) {
+            if (!start || !end) {
+                return 0;
+            }
+        
+            const startParts = String(start).split(':');
+            const endParts = String(end).split(':');
+        
+            const startMinutes =
+                Number(startParts[0]) * 60 +
+                Number(startParts[1]);
+        
+            let endMinutes =
+                Number(endParts[0]) * 60 +
+                Number(endParts[1]);
+        
+            if (
+                !Number.isFinite(startMinutes) ||
+                !Number.isFinite(endMinutes)
+            ) {
+                return 0;
+            }
+        
+            if (endMinutes < startMinutes) {
+                endMinutes += 24 * 60;
+            }
+        
+            return (endMinutes - startMinutes) / 60;
+        }
 
         // ==========================================
         // 3. RENDER DASHBOARD VIEW
@@ -2745,10 +2775,16 @@
                     let dur = Number(r.durasiHours) || 0;
         
                     // Jika mode Hasil Adjust aktif, ambil durasi item spesifik
-                    if (reportModeRekap === 'adjust' && adjustmentsMap[npkKey]) {
-                        const adjData = adjustmentsMap[npkKey];
-                        if (adjData.items && adjData.items[r.id]) {
-                            dur = Number(adjData.items[r.id].durasiHours || adjData.items[r.id].durasi) || 0;
+                    if (reportModeRekap === 'adjust') {
+                        const adjustment =
+                            findAdjustmentForRequest(r);
+                    
+                        if (adjustment) {
+                            dur =
+                                Number(
+                                    adjustment.durasiHours ??
+                                    adjustment.durasi
+                                ) || 0;
                         }
                     }
         
@@ -2786,7 +2822,12 @@
                         });
         
                         const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
-                        const isAdjusted = !!adjustmentsMap[emp.npk];
+                        const isAdjusted =
+                            Boolean(
+                                adjustmentsMap?.[
+                                    String(emp.npk || '').trim()
+                                ]
+                            );
         
                         gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
         
@@ -2861,6 +2902,231 @@
                         </tr>
                     `;
                 }).join('') || `<tr><td colspan="${isAdmin ? 10 : 11}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
+            }
+        }
+
+        function openAdjustModal(npk) {
+            const targetNpk = String(npk || '').trim();
+        
+            if (!targetNpk) {
+                showToast('NPK karyawan tidak ditemukan.', 'error');
+                return;
+            }
+        
+            const reportCabang =
+                document.getElementById('filter-report-cabang');
+        
+            const reportBulan =
+                document.getElementById('filter-report-bulan');
+        
+            const reportTahun =
+                document.getElementById('filter-report-tahun');
+        
+            const selectedCabang =
+                reportCabang?.value || 'ALL';
+        
+            const selectedBulan =
+                reportBulan?.value || 'ALL';
+        
+            const selectedTahun =
+                reportTahun?.value ||
+                String(new Date().getFullYear());
+        
+            const requests = Array.isArray(overtimeRequests)
+                ? overtimeRequests
+                : [];
+        
+            const userRequests = requests.filter(request => {
+                const requestNpk =
+                    String(request.npk || '').trim();
+        
+                if (requestNpk !== targetNpk) {
+                    return false;
+                }
+        
+                const requestCabang =
+                    String(request.cabang || '').toUpperCase();
+        
+                const cabangMatch =
+                    selectedCabang === 'ALL' ||
+                    requestCabang.includes(
+                        String(selectedCabang).toUpperCase()
+                    );
+        
+                const dateParts =
+                    String(request.tanggal || '').split('-');
+        
+                const requestYear = dateParts[0] || '';
+                const requestMonth =
+                    Number(dateParts[1] || 0);
+        
+                const yearMatch =
+                    selectedTahun === 'ALL' ||
+                    requestYear === String(selectedTahun);
+        
+                const monthMatch =
+                    selectedBulan === 'ALL' ||
+                    requestMonth === Number(selectedBulan);
+        
+                const status =
+                    String(request.status || '').toLowerCase();
+        
+                const approved =
+                    status === 'diterima' ||
+                    status === 'approved' ||
+                    status === 'revisi';
+        
+                return (
+                    cabangMatch &&
+                    yearMatch &&
+                    monthMatch &&
+                    approved
+                );
+            });
+        
+            if (userRequests.length === 0) {
+                showToast(
+                    'Tidak ada data lembur yang dapat disesuaikan untuk karyawan ini.',
+                    'info'
+                );
+                return;
+            }
+        
+            const employee =
+                (Array.isArray(karyawanList) ? karyawanList : [])
+                    .find(item =>
+                        String(item.npk || '').trim() === targetNpk
+                    );
+        
+            const firstRequest = userRequests[0];
+        
+            const salary =
+                Number(employee?.gaji) ||
+                Number(firstRequest.gaji) ||
+                0;
+        
+            currentAdjustTarget = {
+                npk: targetNpk,
+                nama: employee?.nama || firstRequest.nama || '-',
+                gaji: salary,
+                requests: userRequests.map(item => ({
+                    ...item,
+                    id: String(item.id || '').trim()
+                }))
+            };
+        
+            const hiddenNpk =
+                document.getElementById('adjust-npk');
+        
+            const infoNama =
+                document.getElementById('adjust-info-nama');
+        
+            const infoNpk =
+                document.getElementById('adjust-info-npk');
+        
+            const infoGaji =
+                document.getElementById('adjust-info-gaji');
+        
+            const rowsBody =
+                document.getElementById('adjust-log-rows-body');
+        
+            if (hiddenNpk) {
+                hiddenNpk.value = targetNpk;
+            }
+        
+            if (infoNama) {
+                infoNama.textContent = currentAdjustTarget.nama;
+            }
+        
+            if (infoNpk) {
+                infoNpk.textContent = targetNpk;
+            }
+        
+            if (infoGaji) {
+                infoGaji.textContent =
+                    `Rp ${salary.toLocaleString('id-ID')}`;
+            }
+        
+            if (!rowsBody) {
+                showToast(
+                    'Elemen tabel adjustment tidak ditemukan.',
+                    'error'
+                );
+                return;
+            }
+        
+            rowsBody.innerHTML =
+                currentAdjustTarget.requests.map((request, index) => {
+                    const adjustment =
+                        findAdjustmentForRequest(request);
+        
+                    const start =
+                        adjustment?.jamMulai ||
+                        request.jamMulai ||
+                        '17:00';
+        
+                    const end =
+                        adjustment?.jamSelesai ||
+                        request.jamSelesai ||
+                        '20:00';
+        
+                    const duration =
+                        Number(adjustment?.durasiHours) ||
+                        Number(request.durasiHours) ||
+                        calculateDurationHours(start, end);
+        
+                    return `
+                        <tr>
+                            <td class="py-2.5 px-3">
+                                <div class="font-semibold">
+                                    ${escapeHtml(request.tanggal || '-')}
+                                </div>
+                                <div class="text-[10px] text-slate-400">
+                                    ${escapeHtml(request.pekerjaan || '-')}
+                                </div>
+                                <div class="text-[10px] text-slate-400 font-mono">
+                                    ID: ${escapeHtml(request.id || '-')}
+                                </div>
+                            </td>
+        
+                            <td class="py-2 px-2 text-center">
+                                <input
+                                    type="text"
+                                    readonly
+                                    id="adj-start-${index}"
+                                    value="${escapeHtml(start)}"
+                                    onclick="openAnalogClock('adj-start-${index}')"
+                                    onchange="calculateLiveAdjustment()"
+                                    class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono cursor-pointer text-center w-20">
+                            </td>
+        
+                            <td class="py-2 px-2 text-center">
+                                <input
+                                    type="text"
+                                    readonly
+                                    id="adj-end-${index}"
+                                    value="${escapeHtml(end)}"
+                                    onclick="openAnalogClock('adj-end-${index}')"
+                                    onchange="calculateLiveAdjustment()"
+                                    class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono cursor-pointer text-center w-20">
+                            </td>
+        
+                            <td
+                                id="adj-dur-${index}"
+                                class="py-2 px-3 text-center font-bold text-blue-600 font-mono">
+                                ${duration.toFixed(2).replace('.', ',')}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+        
+            calculateLiveAdjustment();
+        
+            const modal =
+                document.getElementById('adjust-modal');
+        
+            if (modal) {
+                modal.classList.remove('hidden');
             }
         }
                 
@@ -3087,7 +3353,8 @@
         // 1. FUNGSI UNTUK MEMETAKAN DATA ADJUST DARI DATABASE GOOGLE SHEETS
        async function fetchServerAdjustments() {
             try {
-                const response = await callServer('getAdjustmentsData');
+                const response =
+                    await callServer('getAdjustmentsData');
         
                 if (
                     !response ||
@@ -3098,27 +3365,36 @@
                     return;
                 }
         
-                const rawData = Array.isArray(response.data)
-                    ? response.data
-                    : Object.values(response.data);
+                const data =
+                    Array.isArray(response.data)
+                        ? response.data
+                        : Object.values(response.data);
         
                 adjustmentsMap = {};
         
-                rawData.forEach(item => {
-                    if (!item || typeof item !== 'object') return;
+                data.forEach(item => {
+                    if (!item) {
+                        return;
+                    }
         
-                    const npkKey = String(
-                        item.npk ?? item.NPK ?? ''
-                    ).trim();
+                    const npkKey =
+                        String(
+                            item.npk ??
+                            item.NPK ??
+                            ''
+                        ).trim();
         
-                    if (!npkKey) return;
+                    if (!npkKey) {
+                        return;
+                    }
         
-                    const requestId = String(
-                        item.id ??
-                        item.request_id ??
-                        item.requestId ??
-                        ''
-                    ).trim();
+                    const requestId =
+                        String(
+                            item.id ??
+                            item.request_id ??
+                            item.requestId ??
+                            ''
+                        ).trim();
         
                     if (!adjustmentsMap[npkKey]) {
                         adjustmentsMap[npkKey] = {
@@ -3126,31 +3402,44 @@
                         };
                     }
         
-                    if (!requestId) return;
-        
-                    const duration = Number(
-                        item.durasiHours ??
-                        item.durasi_hours ??
-                        item.durasi ??
-                        item.duration ??
-                        0
-                    ) || 0;
+                    if (!requestId) {
+                        return;
+                    }
         
                     adjustmentsMap[npkKey].items[requestId] = {
                         id: requestId,
-                        tanggal: item.tanggal ?? item.date ?? '',
-                        jamMulai: item.jamMulai ?? item.jam_mulai ?? '',
-                        jamSelesai: item.jamSelesai ?? item.jam_selesai ?? '',
-                        durasiHours: duration
+                        tanggal:
+                            item.tanggal ??
+                            item.date ??
+                            '',
+                        jamMulai:
+                            item.jamMulai ??
+                            item.jam_mulai ??
+                            '',
+                        jamSelesai:
+                            item.jamSelesai ??
+                            item.jam_selesai ??
+                            '',
+                        durasiHours:
+                            Number(
+                                item.durasiHours ??
+                                item.durasi_hours ??
+                                item.durasi ??
+                                0
+                            ) || 0
                     };
                 });
             } catch (error) {
-                console.error('Gagal mengambil data adjustment:', error);
+                console.error(
+                    'Gagal mengambil adjustment:',
+                    error
+                );
+        
                 adjustmentsMap = {};
-            } finally {
-                if (typeof renderReportsView === 'function') {
-                    renderReportsView();
-                }
+            }
+        
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
             }
         }
         
@@ -3159,21 +3448,38 @@
             reportModeRekap = mode;
             rekapViewMode = mode;
         
-            const btnAsli = document.getElementById('btn-view-asli');
-            const btnAdjust = document.getElementById('btn-view-adjust');
+            const btnAsli =
+                document.getElementById('btn-view-asli');
+        
+            const btnAdjust =
+                document.getElementById('btn-view-adjust');
         
             if (btnAsli && btnAdjust) {
-                if (mode === 'asli') {
-                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                } else {
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                }
+                btnAsli.className =
+                    mode === 'asli'
+                        ? 'px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap'
+                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
+        
+                btnAdjust.className =
+                    mode === 'adjust'
+                        ? 'px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap'
+                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
             }
         
-            // Ambil data terbaru dari server lalu update tabel
-            await fetchServerAdjustments();
+            // Render dulu agar tombol terasa langsung berubah
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
+        
+            // Ambil adjustment terbaru dari database
+            if (typeof fetchServerAdjustments === 'function') {
+                await fetchServerAdjustments();
+            }
+        
+            // Render ulang setelah data server masuk
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
         }
         
         // 3. FUNGSI SWITCH MODE LOG HARIAN
@@ -3181,20 +3487,35 @@
             reportModeLog = mode;
             claimViewMode = mode;
         
-            const btnAsli = document.getElementById('btn-claim-view-asli');
-            const btnAdjust = document.getElementById('btn-claim-view-adjust');
+            const btnAsli =
+                document.getElementById('btn-claim-view-asli');
+        
+            const btnAdjust =
+                document.getElementById('btn-claim-view-adjust');
         
             if (btnAsli && btnAdjust) {
-                if (mode === 'asli') {
-                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                } else {
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                }
+                btnAsli.className =
+                    mode === 'asli'
+                        ? 'px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap'
+                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
+        
+                btnAdjust.className =
+                    mode === 'adjust'
+                        ? 'px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap'
+                        : 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap';
             }
         
-            await fetchServerAdjustments();
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
+        
+            if (typeof fetchServerAdjustments === 'function') {
+                await fetchServerAdjustments();
+            }
+        
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
         }
         
         // 4. PEMBAHARUAN FUNGSI RENDER TAMPILAN LAPORAN (REAL-TIME DATA & KONTROL PERSEN ADJUST)
@@ -3357,6 +3678,58 @@
                     `;
                 }).join('') || `<tr><td colspan="10" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
             }
+        }
+
+        function findAdjustmentForRequest(request) {
+            if (!request) {
+                return null;
+            }
+        
+            const npkKey =
+                String(request.npk || '').trim();
+        
+            const requestId =
+                String(request.id || '').trim();
+        
+            const employeeAdjustment =
+                adjustmentsMap?.[npkKey];
+        
+            if (!employeeAdjustment) {
+                return null;
+            }
+        
+            const items =
+                employeeAdjustment.items || {};
+        
+            // 1. Cocokkan ID sebagai string
+            if (requestId && items[requestId]) {
+                return items[requestId];
+            }
+        
+            // 2. Cocokkan semua key tanpa masalah angka/string
+            const matchedById =
+                Object.entries(items).find(([key, value]) => {
+                    return String(key).trim() === requestId;
+                });
+        
+            if (matchedById) {
+                return matchedById[1];
+            }
+        
+            // 3. Fallback berdasarkan tanggal
+            const requestDate =
+                String(request.tanggal || '').trim();
+        
+            const matchedByDate =
+                Object.values(items).find(item => {
+                    return String(
+                        item.tanggal ||
+                        item.date ||
+                        ''
+                    ).trim() === requestDate;
+                });
+        
+            return matchedByDate?.[1] || matchedByDate || null;
         }
         
         // ==========================================
