@@ -1661,12 +1661,13 @@
             }).join('') || `<tr><td colspan="8" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur pribadi Anda.</td></tr>`;
         }
         
-
         // ==========================================
         // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
         // ==========================================
         function renderRecentActivities() {
+            // 1. Tangkap tbody (mencakup ID alternatif)
             const targetTbody = document.getElementById('table-aktivitas-terkini-body') || 
+                                document.getElementById('recent-activity-tbody') ||
                                 document.querySelector('#dashboard-recent-table') || 
                                 document.querySelector('#aktivitas-terkini-table tbody');
         
@@ -1674,7 +1675,7 @@
         
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
         
-            // 1. Cek Role Pengguna
+            // 2. Cek Role Pengguna
             let userRole = 'user';
             if (typeof currentUserRole !== 'undefined' && currentUserRole) {
                 userRole = currentUserRole.toString().trim().toLowerCase();
@@ -1683,70 +1684,92 @@
             }
             const isAdmin = userRole === 'admin';
         
-            // 2. Filter Hak Akses (Admin = Semua, User = Hanya Milik Sendiri)
+            // 3. Filter Hak Akses (Admin = Semua, User = Hanya NPK Milik Sendiri)
             const myNpk = currentUser ? (currentUser.npk || '').toString().trim() : '';
             const filteredData = listData.filter(r => {
                 if (isAdmin) return true;
-                return myNpk !== '' && (r.npk || '').toString().trim() === myNpk;
+                const itemNpk = (r.npk || r.NPK || '').toString().trim();
+                return myNpk !== '' && itemNpk === myNpk;
             });
         
-            // 3. PENGURUTAN BENAR: Tanggal Terbaru di Atas (Descending)
+            // 4. Pengurutan Presisi Tanggal Terbaru ke Terlama (Descending)
             const sortedData = [...filteredData].sort((a, b) => {
-                // Parse tanggal ke format objek Date untuk pembandingan yang akurat
-                const dateA = a.tanggal ? new Date(a.tanggal.toString().replace(/\//g, '-')).getTime() : 0;
-                const dateB = b.tanggal ? new Date(b.tanggal.toString().replace(/\//g, '-')).getTime() : 0;
+                const parseDateStr = (str) => {
+                    if (!str) return "";
+                    const s = str.toString().trim();
+                    const parts = s.includes('-') ? s.split('-') : s.split('/');
+                    if (parts.length === 3) {
+                        let y = parts[0].length === 4 ? parts[0] : parts[2];
+                        let m = ('0' + parts[1]).slice(-2);
+                        let d = ('0' + (parts[0].length === 4 ? parts[2] : parts[0])).slice(-2);
+                        return `${y}-${m}-${d}`;
+                    }
+                    return s;
+                };
         
-                // Jika tanggal beda, taruh tanggal yang paling baru di paling atas
-                if (dateB !== dateA) {
-                    return dateB - dateA;
+                const dateA = parseDateStr(a.tanggal || a.Tanggal);
+                const dateB = parseDateStr(b.tanggal || b.Tanggal);
+        
+                // A. Urutkan berdasarkan string ISO YYYY-MM-DD
+                if (dateA !== dateB) {
+                    return dateB.localeCompare(dateA);
                 }
         
-                // Jika tanggal sama, urutkan dari Timestamp / ID angka terbesar
+                // B. Jika Tanggal Sama, Urutkan dari Timestamp / ID
                 const timeA = Number(a.timestamp) || 0;
                 const timeB = Number(b.timestamp) || 0;
-                if (timeB !== timeA) {
-                    return timeB - timeA;
-                }
+                if (timeB !== timeA) return timeB - timeA;
         
                 const idA = Number((a.id || '').toString().replace(/\D/g, '')) || 0;
                 const idB = Number((b.id || '').toString().replace(/\D/g, '')) || 0;
                 return idB - idA;
             });
         
-            // 4. Ambil 10 data teratas
+            // 5. Ambil 10 data teratas
             const recentList = sortedData.slice(0, 10);
         
-            // 5. Render ke tabel HTML
+            // 6. Render Sekaligus ke HTML
             targetTbody.innerHTML = recentList.map(r => {
-                const durasiNum = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
-                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
+                // Safe Reading untuk Huruf Kecil mau pun Kapital
+                const vNama = r.nama || r.Nama || '-';
+                const vNpk = r.npk || r.NPK || '-';
+                const vCabang = r.cabang || r.Cabang || '-';
+                const vTanggal = r.tanggal || r.Tanggal || '-';
+                const vJamMulai = r.jamMulai || r.Jam_Mulai || r.jam_mulai || '-';
+                const vJamSelesai = r.jamSelesai || r.Jam_Selesai || r.jam_selesai || '-';
+                const vPekerjaan = r.pekerjaan || r.Pekerjaan || '-';
+                const vStatus = r.status || r.Status || 'Pending';
+                const durasiNum = Number(r.durasiHours || r.durasi || 0).toFixed(1).replace('.', ',');
+        
+                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(vStatus) : `
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                        (r.status || '').toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                        (r.status || '').toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        vStatus.toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        vStatus.toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
                     }">
-                        ${r.status || 'Pending'}
+                        ${vStatus}
                     </span>
                 `;
         
                 return `
                     <tr class="hover:bg-slate-50 transition-all">
                         <td class="py-3 px-4 font-bold text-slate-800">
-                            ${r.nama || '-'} 
-                            <div class="text-xs text-slate-400 font-mono font-normal">(${r.npk || '-'})</div>
+                            ${vNama} 
+                            <div class="text-xs text-slate-400 font-mono font-normal">(${vNpk})</div>
                         </td>
-                        <td class="py-3 px-4 text-slate-600">${r.cabang || '-'}</td>
-                        <td class="py-3 px-4 text-slate-600">${r.tanggal || '-'}</td>
+                        <td class="py-3 px-4 text-slate-600">${vCabang}</td>
+                        <td class="py-3 px-4 text-slate-600">${vTanggal}</td>
                         <td class="py-3 px-4 text-slate-600 font-mono">
-                            ${r.jamMulai || '-'} - ${r.jamSelesai || '-'} 
+                            ${vJamMulai} - ${vJamSelesai} 
                             <br><span class="text-xs text-slate-400 font-sans">(${durasiNum}j)</span>
                         </td>
-                        <td class="py-3 px-4 text-slate-600 max-w-[200px] truncate" title="${r.pekerjaan || ''}">${r.pekerjaan || '-'}</td>
+                        <td class="py-3 px-4 text-slate-600 max-w-[200px] truncate" title="${vPekerjaan}">${vPekerjaan}</td>
                         <td class="py-3 px-4 text-center">${badgeHTML}</td>
                     </tr>
                 `;
             }).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada aktivitas lembur tercatat.</td></tr>`;
         }
+                
         // ==========================================
         // 4. RENDER DASHBOARD VIEW
         // ==========================================
@@ -4083,50 +4106,44 @@
             }
         }
 
-        function loadDashboardActivity() {
-            // Contoh jika menggunakan Google Apps Script / Backend API
-            fetchFromBackend("getRecentActivity", {}, function(response) {
-                if (response && response.success) {
-                    renderRecentActivityTable(response.data);
-                }
-            });
-        }
+        async function loadDashboardActivity() {
+            try {
+                // 1. Panggil action 'getAllOvertimeData' yang sesuai dengan backend Kode.gs
+                const response = await fetchFromBackend('getAllOvertimeData');
         
-        function renderRecentActivityTable(dataList) {
-            const tbody = document.getElementById("recent-activity-tbody"); // Sesuaikan ID elemen tabel Anda
-            if (!tbody) return;
-            
-            tbody.innerHTML = ""; // Kosongkan data lama
-            
-            dataList.forEach(item => {
-                let row = `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="py-3 px-4">
-                            <div class="font-bold text-gray-800">${item.Nama}</div>
-                            <div class="text-xs text-gray-500">(${item.NPK})</div>
-                        </td>
-                        <td class="py-3 px-4">${item.Cabang}</td>
-                        <td class="py-3 px-4">${item.Tanggal}</td>
-                        <td class="py-3 px-4">${item.Jam_Mulai} - ${item.Jam_Selesai}</td>
-                        <td class="py-3 px-4">${item.Pekerjaan}</td>
-                        <td class="py-3 px-4">
-                            <span class="px-2 py-1 rounded text-xs ${item.Status === 'Diterima' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
-                                ${item.Status}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
+                if (response && response.success && Array.isArray(response.data)) {
+                    // 2. Simpan data ke variabel global overtimeRequests
+                    overtimeRequests = response.data;
+        
+                    // 3. Panggil renderRecentActivities (fungsi render terpadu)
+                    if (typeof renderRecentActivities === 'function') {
+                        renderRecentActivities();
+                    }
+                }
+            } catch (error) {
+                console.error("Gagal memuat aktivitas dashboard:", error);
+            }
         }
 
-        // Contoh pada event sukses form submit / approve
-        function onSuccessAction(res) {
-            alert("Berhasil disimpan!");
-            // Langsung muat ulang data aktivitas terkini agar langsung berubah di UI
-            loadDashboardActivity(); 
+        // ==========================================
+        // CALLBACK SETELAH SUBMIT / APPROVE FORM
+        // ==========================================
+        async function onSuccessAction(res) {
+            if (typeof showToast === 'function') {
+                showToast("Data berhasil disimpan!", "success");
+            } else {
+                alert("Berhasil disimpan!");
+            }
+        
+            // Panggil loadAllDataServer agar seluruh tabel & KPI langsung sinkron
+            if (typeof loadAllDataServer === 'function') {
+                await loadAllDataServer(); 
+            }
         }
 
+        // ==========================================
+        // POPULATE DROPDOWN FILTER TAHUN DASHBOARD
+        // ==========================================
         function populateDashboardYearFilter() {
             const tahunSelect = document.getElementById('filter-dashboard-tahun');
             if (!tahunSelect) return;
@@ -4134,6 +4151,7 @@
             const currentYear = new Date().getFullYear();
             tahunSelect.innerHTML = '';
             
+            // Generasi opsi tahun dari tahun depan (currentYear + 1) hingga 2024
             for (let y = currentYear + 1; y >= 2024; y--) {
                 const opt = document.createElement('option');
                 opt.value = y.toString();
@@ -4143,6 +4161,16 @@
                 }
                 tahunSelect.appendChild(opt);
             }
+        
+            // Tambahkan event listener change agar otomatis me-render ulang dashboard
+            tahunSelect.onchange = function() {
+                if (typeof selectedTahun !== 'undefined') {
+                    selectedTahun = this.value;
+                }
+                if (typeof renderDashboardView === 'function') {
+                    renderDashboardView();
+                }
+            };
         }
 
         document.addEventListener("DOMContentLoaded", function() {
