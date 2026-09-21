@@ -2323,6 +2323,118 @@
             badgePending.innerText = totalPending;
         }
 
+        // MODAL ADJUSTMENT (PEMUTUSAN JAM LEMBUR)
+        function openAdjustModal(npk) {
+            const npkKey = (npk || '').toString().trim();
+            
+            // 1. Ambil filter aktif saat ini dari DOM
+            const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
+            const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
+            const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
+        
+            // 2. Filter pengajuan lembur yang statusnya 'diterima'/'approved' untuk NPK & periode ini
+            const empRequests = (overtimeRequests || []).filter(r => {
+                const isNpkMatch = (r.npk || '').toString().trim() === npkKey;
+                const statusClean = (r.status || '').toString().toLowerCase();
+                const isApproved = (statusClean === 'diterima' || statusClean === 'approved' || statusClean === 'revisi');
+        
+                let reqYear = "", reqMonth = "";
+                if (r.tanggal) {
+                    const tStr = r.tanggal.toString().trim();
+                    const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) { 
+                            reqYear = parts[0]; 
+                            reqMonth = parseInt(parts[1], 10).toString(); 
+                        } else if (parts[2].length === 4) { 
+                            reqYear = parts[2]; 
+                            reqMonth = parseInt(parts[1], 10).toString(); 
+                        }
+                    }
+                }
+        
+                return isNpkMatch && isApproved && (reqYear ? reqYear === selectedTahun : true) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
+            });
+        
+            // Validasi jika tidak ada data lembur
+            if (empRequests.length === 0) {
+                if (typeof showToast === 'function') {
+                    showToast("Tidak ada data lembur yang valid untuk disesuaikan.", "info");
+                } else {
+                    alert("Tidak ada data lembur yang valid untuk disesuaikan.");
+                }
+                return;
+            }
+        
+            // 3. Ambil data Gaji Pokok
+            const first = empRequests[0];
+            let gajiPokok = Number(first.gaji) || 0;
+            if (gajiPokok === 0 && Array.isArray(karyawanList)) {
+                const k = karyawanList.find(x => x.npk && x.npk.toString().trim() === npkKey);
+                if (k) gajiPokok = Number(k.gaji) || 0;
+            }
+        
+            // 4. Simpan ke state global untuk target adjustment aktif
+            currentAdjustTarget = {
+                npk: npkKey,
+                nama: first.nama,
+                gaji: gajiPokok,
+                requests: empRequests
+            };
+        
+            // 5. Isi informasi header Modal
+            const inputNpk = document.getElementById('adjust-npk');
+            const infoNama = document.getElementById('adjust-info-nama');
+            const infoNpk = document.getElementById('adjust-info-npk');
+            const infoGaji = document.getElementById('adjust-info-gaji');
+        
+            if (inputNpk) inputNpk.value = npkKey;
+            if (infoNama) infoNama.innerText = first.nama;
+            if (infoNpk) infoNpk.innerText = npkKey;
+            if (infoGaji) infoGaji.innerText = `Rp ${gajiPokok.toLocaleString('id-ID')}`;
+        
+            // 6. Render daftar baris input jam di dalam modal
+            const rowsBody = document.getElementById('adjust-log-rows-body');
+            if (rowsBody) {
+                const existingAdj = (adjustmentsMap && adjustmentsMap[npkKey]) ? adjustmentsMap[npkKey].items : {};
+        
+                rowsBody.innerHTML = empRequests.map(r => {
+                    const savedItem = existingAdj ? existingAdj[r.id] : null;
+                    const curMulai = savedItem ? savedItem.jamMulai : r.jamMulai;
+                    const curSelesai = savedItem ? savedItem.jamSelesai : r.jamSelesai;
+                    const curDur = savedItem ? Number(savedItem.durasiHours) : Number(r.durasiHours);
+        
+                    return `
+                        <tr data-id="${r.id}" class="hover:bg-slate-50 transition-all">
+                            <td class="py-2.5 px-3">
+                                <span class="font-bold text-slate-800 block">${r.tanggal}</span>
+                                <span class="text-[11px] text-slate-400 truncate max-w-[180px] block" title="${r.pekerjaan || ''}">${r.pekerjaan || '-'}</span>
+                            </td>
+                            <td class="py-2.5 px-3 text-center">
+                                <input type="time" value="${curMulai}" onchange="recalculateAdjustModalTotals()" class="adj-start-time w-24 text-center px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-blue-500/20">
+                            </td>
+                            <td class="py-2.5 px-3 text-center">
+                                <input type="time" value="${curSelesai}" onchange="recalculateAdjustModalTotals()" class="adj-end-time w-24 text-center px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-blue-500/20">
+                            </td>
+                            <td class="py-2.5 px-3 text-center font-bold text-slate-800 adj-row-durasi">
+                                ${curDur.toFixed(1).replace('.', ',')} j
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        
+            // 7. Hitung ulang total di footer modal & tampilkan modalnya
+            if (typeof recalculateAdjustModalTotals === 'function') {
+                recalculateAdjustModalTotals();
+            }
+            
+            const adjustModal = document.getElementById('adjust-modal');
+            if (adjustModal) {
+                adjustModal.classList.remove('hidden');
+            }
+        }
+
         
         function toggleEditCustomPekerjaan(show) {
             const customInput = document.getElementById('edit-pekerjaan-custom');
@@ -2958,25 +3070,34 @@
             await fetchServerAdjustments();
         }
         
+    
         // 3. FUNGSI SWITCH MODE LOG HARIAN
         async function switchClaimViewMode(mode) {
+            // 1. Update state global
             reportModeLog = mode;
             claimViewMode = mode;
         
+            // 2. Ambil data penyesuaian dari server jika memilih mode adjust
+            if (typeof fetchServerAdjustments === 'function') {
+                await fetchServerAdjustments();
+            }
+        
+            // 3. Render ulang tampilan tabel agar data sesuai mode terpanggil
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
+        
+            // 4. Update tampilan tombol aktif/nonaktif setelah DOM siap
             const btnAsli = document.getElementById('btn-claim-view-asli');
             const btnAdjust = document.getElementById('btn-claim-view-adjust');
         
             if (btnAsli && btnAdjust) {
-                if (mode === 'asli') {
-                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                } else {
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                }
-            }
+                const activeClass = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                const inactiveClass = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
         
-            await fetchServerAdjustments();
+                btnAsli.className = (mode === 'asli') ? activeClass : inactiveClass;
+                btnAdjust.className = (mode === 'adjust') ? activeClass : inactiveClass;
+            }
         }
         
         // 4. PEMBAHARUAN FUNGSI RENDER TAMPILAN LAPORAN (REAL-TIME DATA & KONTROL PERSEN ADJUST)
