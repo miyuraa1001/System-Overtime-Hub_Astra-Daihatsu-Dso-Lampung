@@ -2906,228 +2906,44 @@
         }
 
         function openAdjustModal(npk) {
-            const targetNpk = String(npk || '').trim();
+            const target = String(npk || '').trim();
+            if (!target) return;
         
-            if (!targetNpk) {
-                showToast('NPK karyawan tidak ditemukan.', 'error');
-                return;
-            }
+            const requests = Array.isArray(overtimeRequests) ? overtimeRequests : [];
+            const targetRequests = requests.filter(r => String(r.npk || '').trim() === target);
         
-            const reportCabang =
-                document.getElementById('filter-report-cabang');
+            if (!targetRequests.length) return;
         
-            const reportBulan =
-                document.getElementById('filter-report-bulan');
+            const row = targetRequests[0];
         
-            const reportTahun =
-                document.getElementById('filter-report-tahun');
+            const originalStart = row.jamMulai || '17:00';
+            const originalEnd = row.jamSelesai || '20:00';
         
-            const selectedCabang =
-                reportCabang?.value || 'ALL';
+            const existingAdjustment = findAdjustmentForRequest(row);
         
-            const selectedBulan =
-                reportBulan?.value || 'ALL';
-        
-            const selectedTahun =
-                reportTahun?.value ||
-                String(new Date().getFullYear());
-        
-            const requests = Array.isArray(overtimeRequests)
-                ? overtimeRequests
-                : [];
-        
-            const userRequests = requests.filter(request => {
-                const requestNpk =
-                    String(request.npk || '').trim();
-        
-                if (requestNpk !== targetNpk) {
-                    return false;
-                }
-        
-                const requestCabang =
-                    String(request.cabang || '').toUpperCase();
-        
-                const cabangMatch =
-                    selectedCabang === 'ALL' ||
-                    requestCabang.includes(
-                        String(selectedCabang).toUpperCase()
-                    );
-        
-                const dateParts =
-                    String(request.tanggal || '').split('-');
-        
-                const requestYear = dateParts[0] || '';
-                const requestMonth =
-                    Number(dateParts[1] || 0);
-        
-                const yearMatch =
-                    selectedTahun === 'ALL' ||
-                    requestYear === String(selectedTahun);
-        
-                const monthMatch =
-                    selectedBulan === 'ALL' ||
-                    requestMonth === Number(selectedBulan);
-        
-                const status =
-                    String(request.status || '').toLowerCase();
-        
-                const approved =
-                    status === 'diterima' ||
-                    status === 'approved' ||
-                    status === 'revisi';
-        
-                return (
-                    cabangMatch &&
-                    yearMatch &&
-                    monthMatch &&
-                    approved
-                );
-            });
-        
-            if (userRequests.length === 0) {
-                showToast(
-                    'Tidak ada data lembur yang dapat disesuaikan untuk karyawan ini.',
-                    'info'
-                );
-                return;
-            }
-        
-            const employee =
-                (Array.isArray(karyawanList) ? karyawanList : [])
-                    .find(item =>
-                        String(item.npk || '').trim() === targetNpk
-                    );
-        
-            const firstRequest = userRequests[0];
-        
-            const salary =
-                Number(employee?.gaji) ||
-                Number(firstRequest.gaji) ||
-                0;
+            const adjustedStart = existingAdjustment?.jamMulai || originalStart;
+            const adjustedEnd = existingAdjustment?.jamSelesai || originalEnd;
         
             currentAdjustTarget = {
-                npk: targetNpk,
-                nama: employee?.nama || firstRequest.nama || '-',
-                gaji: salary,
-                requests: userRequests.map(item => ({
-                    ...item,
-                    id: String(item.id || '').trim()
-                }))
+                npk: target,
+                nama: row.nama || '-',
+                requests: targetRequests,
+                originalStart,
+                originalEnd,
+                adjustedStart,
+                adjustedEnd
             };
         
-            const hiddenNpk =
-                document.getElementById('adjust-npk');
+            // isi input modal
+            const modal = document.getElementById('adjust-modal');
+            if (modal) modal.classList.remove('hidden');
         
-            const infoNama =
-                document.getElementById('adjust-info-nama');
+            // contoh:
+            const startInput = document.getElementById('adjust-start-input');
+            const endInput = document.getElementById('adjust-end-input');
         
-            const infoNpk =
-                document.getElementById('adjust-info-npk');
-        
-            const infoGaji =
-                document.getElementById('adjust-info-gaji');
-        
-            const rowsBody =
-                document.getElementById('adjust-log-rows-body');
-        
-            if (hiddenNpk) {
-                hiddenNpk.value = targetNpk;
-            }
-        
-            if (infoNama) {
-                infoNama.textContent = currentAdjustTarget.nama;
-            }
-        
-            if (infoNpk) {
-                infoNpk.textContent = targetNpk;
-            }
-        
-            if (infoGaji) {
-                infoGaji.textContent =
-                    `Rp ${salary.toLocaleString('id-ID')}`;
-            }
-        
-            if (!rowsBody) {
-                showToast(
-                    'Elemen tabel adjustment tidak ditemukan.',
-                    'error'
-                );
-                return;
-            }
-        
-            rowsBody.innerHTML =
-                currentAdjustTarget.requests.map((request, index) => {
-                    const adjustment =
-                        findAdjustmentForRequest(request);
-        
-                    const start =
-                        adjustment?.jamMulai ||
-                        request.jamMulai ||
-                        '17:00';
-        
-                    const end =
-                        adjustment?.jamSelesai ||
-                        request.jamSelesai ||
-                        '20:00';
-        
-                    const duration =
-                        Number(adjustment?.durasiHours) ||
-                        Number(request.durasiHours) ||
-                        calculateDurationHours(start, end);
-        
-                    return `
-                        <tr>
-                            <td class="py-2.5 px-3">
-                                <div class="font-semibold">
-                                    ${escapeHtml(request.tanggal || '-')}
-                                </div>
-                                <div class="text-[10px] text-slate-400">
-                                    ${escapeHtml(request.pekerjaan || '-')}
-                                </div>
-                                <div class="text-[10px] text-slate-400 font-mono">
-                                    ID: ${escapeHtml(request.id || '-')}
-                                </div>
-                            </td>
-        
-                            <td class="py-2 px-2 text-center">
-                                <input
-                                    type="text"
-                                    readonly
-                                    id="adj-start-${index}"
-                                    value="${escapeHtml(start)}"
-                                    onclick="openAnalogClock('adj-start-${index}')"
-                                    onchange="calculateLiveAdjustment()"
-                                    class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono cursor-pointer text-center w-20">
-                            </td>
-        
-                            <td class="py-2 px-2 text-center">
-                                <input
-                                    type="text"
-                                    readonly
-                                    id="adj-end-${index}"
-                                    value="${escapeHtml(end)}"
-                                    onclick="openAnalogClock('adj-end-${index}')"
-                                    onchange="calculateLiveAdjustment()"
-                                    class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono cursor-pointer text-center w-20">
-                            </td>
-        
-                            <td
-                                id="adj-dur-${index}"
-                                class="py-2 px-3 text-center font-bold text-blue-600 font-mono">
-                                ${duration.toFixed(2).replace('.', ',')}
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-        
-            calculateLiveAdjustment();
-        
-            const modal =
-                document.getElementById('adjust-modal');
-        
-            if (modal) {
-                modal.classList.remove('hidden');
-            }
+            if (startInput) startInput.value = adjustedStart;
+            if (endInput) endInput.value = adjustedEnd;
         }
                 
         // ==========================================
@@ -3736,64 +3552,25 @@
         // KALKULASI LIVE ADJUSTMENT DI MODAL
         // ==========================================
         function calculateLiveAdjustment() {
-            if (!currentAdjustTarget) return;
+            const startInput = document.getElementById('adjust-start-input');
+            const endInput = document.getElementById('adjust-end-input');
         
-            let totalJam = 0;
-            let totalL1 = 0;
-            let totalL2 = 0;
+            if (!startInput || !endInput) return;
         
-            currentAdjustTarget.requests.forEach((r, i) => {
-                const jm = document.getElementById(`adj-start-${i}`).value;
-                const js = document.getElementById(`adj-end-${i}`).value;
-                let durasi = 0;
+            const start = startInput.value;
+            const end = endInput.value;
         
-                if (jm && js) {
-                    const start = new Date(`2000-01-01T${jm}:00`);
-                    let end = new Date(`2000-01-01T${js}:00`);
-                    if (end < start) end = new Date(`2000-01-02T${js}:00`);
-                    durasi = Math.max(0, (end - start) / (1000 * 60 * 60));
-                }
+            const startMinutes = parseInt(start.split(':')[0], 10) * 60 + parseInt(start.split(':')[1], 10);
+            let endMinutes = parseInt(end.split(':')[0], 10) * 60 + parseInt(end.split(':')[1], 10);
         
-                // Update teks durasi di baris tabel modal secara real-time
-                const durEl = document.getElementById(`adj-dur-${i}`);
-                if (durEl) durEl.innerText = durasi.toFixed(2).replace('.', ',');
+            if (endMinutes < startMinutes) endMinutes += 24 * 60;
         
-                totalJam += durasi;
+            const totalJam = (endMinutes - startMinutes) / 60;
+            const totalCell = document.getElementById('adjust-total-hours');
         
-                // Aturan standar harian: Lembur 1 maksimal 1 jam, sisanya masuk Lembur 2
-                totalL1 += Math.min(durasi, 1);
-                totalL2 += Math.max(0, durasi - 1);
-            });
-        
-            const totalPoin = (totalL1 * 1.5) + (totalL2 * 2.7);
-            const estimasi = Math.round((currentAdjustTarget.gaji / 173) * totalPoin);
-        
-            // Hitung poin asli sebelumnya untuk perbandingan persentase
-            let origL1 = 0, origL2 = 0;
-            currentAdjustTarget.requests.forEach(r => {
-                const d = Number(r.durasiHours) || 0;
-                origL1 += Math.min(d, 1);
-                origL2 += Math.max(0, d - 1);
-            });
-            
-            const origPoin = (origL1 * 1.5) + (origL2 * 2.7);
-            const percent = origPoin > 0 ? Math.round((totalPoin / origPoin) * 100) : 100;
-        
-            // Render ke elemen ringkasan di dalam modal
-            document.getElementById('adjust-summary-total-jam').innerText = totalJam.toFixed(2).replace('.', ',');
-            document.getElementById('adjust-summary-l1').innerText = totalL1.toFixed(2).replace('.', ',');
-            document.getElementById('adjust-summary-l2').innerText = totalL2.toFixed(2).replace('.', ',');
-            document.getElementById('adjust-summary-poin').innerText = totalPoin.toFixed(2).replace('.', ',');
-            document.getElementById('adjust-summary-estimasi').innerText = `Rp ${estimasi.toLocaleString('id-ID')}`;
-            document.getElementById('adjust-summary-persen').innerText = `${percent}%`;
-        
-            // Simpan hasil komputasi sementara ke objek target
-            currentAdjustTarget.computed = {
-                lembur1: totalL1,
-                lembur2: totalL2,
-                lembur3: 0,
-                lembur4: 0
-            };
+            if (totalCell) {
+                totalCell.textContent = totalJam.toFixed(2).replace('.', ',');
+            }
         }
 
         async function saveAdjustment() {
@@ -4203,22 +3980,24 @@
 
         function openAnalogClock(inputId) {
             currentClockTargetInput = document.getElementById(inputId);
+        
             if (!currentClockTargetInput) return;
         
-            // Ambil nilai awal dari input jika ada
-            const val = currentClockTargetInput.value || "17:00";
-            const parts = val.split(":");
-            selectedHourVal = parts[0] || "17";
-            selectedMinuteVal = parts[1] || "00";
+            const rawValue = currentClockTargetInput.value || '17:00';
+            const [hour, minute] = String(rawValue).split(':').map(Number);
         
-            clockMode = "jam";
-            document.getElementById('analog-clock-modal').classList.remove('hidden');
-            renderClockFace();
-            updateClockDisplay();
+            selectedHourValue = Number.isFinite(hour) ? hour : 17;
+            selectedMinuteValue = Number.isFinite(minute) ? minute : 0;
+        
+            renderAnalogClock();
+            const modal = document.getElementById('clock-modal');
+            if (modal) modal.classList.remove('hidden');
         }
         
         function closeAnalogClock() {
-            document.getElementById('analog-clock-modal').classList.add('hidden');
+            const modal = document.getElementById('clock-modal');
+            if (modal) modal.classList.add('hidden');
+        
             currentClockTargetInput = null;
         }
         
@@ -4227,6 +4006,19 @@
             document.getElementById('btn-mode-jam').className = mode === 'jam' ? 'px-3 py-1.5 rounded-lg bg-blue-600 text-white transition-all' : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all';
             document.getElementById('btn-mode-menit').className = mode === 'menit' ? 'px-3 py-1.5 rounded-lg bg-blue-600 text-white transition-all' : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all';
             renderClockFace();
+        }
+
+        function renderAnalogClock() {
+            const hourLabel = document.getElementById('analog-hour-label');
+            const minuteLabel = document.getElementById('analog-minute-label');
+        
+            if (hourLabel) {
+                hourLabel.textContent = String(selectedHourValue).padStart(2, '0');
+            }
+        
+            if (minuteLabel) {
+                minuteLabel.textContent = String(selectedMinuteValue).padStart(2, '0');
+            }
         }
 
         function updateClockDisplay() {
@@ -4327,31 +4119,14 @@
         }
         
         function saveAnalogClock() {
-            if (!currentClockTargetInput) {
-                closeAnalogClock();
-                return;
-            }
+            if (!currentClockTargetInput) return;
         
-            const selectedTime =
-                `${selectedHourValue}:${selectedMinuteValue}`;
+            const newValue = `${String(selectedHourValue).padStart(2, '0')}:${String(selectedMinuteValue).padStart(2, '0')}`;
         
-            currentClockTargetInput.value = selectedTime;
+            currentClockTargetInput.value = newValue;
+            currentClockTargetInput.dispatchEvent(new Event('change', { bubbles: true }));
         
-            currentClockTargetInput.dispatchEvent(
-                new Event('change', { bubbles: true })
-            );
-        
-            if (
-                currentClockTargetInput.id === 'form-jam-mulai' ||
-                currentClockTargetInput.id === 'form-jam-selesai'
-            ) {
-                calculateFormDuration();
-            }
-        
-            if (
-                currentClockTargetInput.id.startsWith('adj-start-') ||
-                currentClockTargetInput.id.startsWith('adj-end-')
-            ) {
+            if (typeof calculateLiveAdjustment === 'function') {
                 calculateLiveAdjustment();
             }
         
