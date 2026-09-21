@@ -1324,12 +1324,12 @@
 
 
         // ==========================================
-        // 1. INISIALISASI SESI
+        // 1. INISIALISASI SESI (PERBAIKAN)
         // ==========================================
         window.onload = function () {
             initRealtimeFilterDates();
             populateDashboardYearFilter(); 
-
+        
             const savedCreds = localStorage.getItem('overtime_saved_credentials');
             if (savedCreds) {
                 try {
@@ -1341,15 +1341,23 @@
                     localStorage.removeItem('overtime_saved_credentials');
                 }
             }
-
+        
             const savedUser = localStorage.getItem('overtime_user_session');
             if (savedUser) {
                 try {
                     currentUser = JSON.parse(savedUser);
-                    currentUserRole = (currentUser.role || 'user').toString().trim().toLowerCase();
+                    
+                    // PERBAIKAN 1: Pastikan NPK dan Role tersimpan konsisten sebagai String
+                    if (currentUser) {
+                        currentUser.npk = (currentUser.npk || '').toString().trim();
+                        currentUserRole = (currentUser.role || 'user').toString().trim().toLowerCase();
+                    }
+        
                     document.getElementById('login-screen').classList.add('hidden');
                     applyRolePermissions();
                     updateProfileHeader();
+                    
+                    // Muat data awal setelah user dipastikan valid
                     loadAllDataServer();
                 } catch (e) {
                     localStorage.removeItem('overtime_user_session');
@@ -1358,13 +1366,14 @@
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
             }
-
+        
+            // PERBAIKAN 2: Longgarkan interval polling dari 10 detik jadi 30–45 detik
+            // agar tampilan tidak sering ke-refresh mendadak saat user sedang memakai aplikasi
             setInterval(() => {
                 if (currentUser) {
                     loadAllDataServer();
                 }
-            }, 10000);
-            
+            }, 30000); 
         };
 
         // ==========================================
@@ -1575,8 +1584,8 @@
             const tbody = document.getElementById('history-table-body');
             if (!tbody) return;
         
-            // 1. Ambil NPK user yang sedang login
-            const myNpk = currentUser ? (currentUser.npk || '').toString().trim() : '';
+            // 1. Ambil NPK user yang sedang login dengan Safe Guard
+            const myNpk = currentUser && currentUser.npk ? String(currentUser.npk).trim() : '';
         
             if (!myNpk) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Silakan login untuk melihat riwayat lembur Anda.</td></tr>`;
@@ -1584,26 +1593,30 @@
             }
         
             // 2. Ambil nilai filter bulan & tahun aktif
-            const selTahun = typeof selectedTahun !== 'undefined' ? selectedTahun : (document.getElementById('filter-history-tahun')?.value || new Date().getFullYear().toString());
-            const selBulan = typeof selectedBulan !== 'undefined' ? selectedBulan : (document.getElementById('filter-history-bulan')?.value || 'ALL');
+            const selTahun = typeof selectedTahun !== 'undefined' ? String(selectedTahun) : (document.getElementById('filter-history-tahun')?.value || new Date().getFullYear().toString());
+            const selBulan = typeof selectedBulan !== 'undefined' ? String(selectedBulan) : (document.getElementById('filter-history-bulan')?.value || 'ALL');
             const filterBulanClean = selBulan === 'ALL' ? 'ALL' : parseInt(selBulan, 10).toString();
         
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
         
-            // 3. Filter KHUSUS NPK milik user yang sedang login (termasuk jika user tersebut Admin)
+            // 3. Filter KHUSUS NPK milik user yang sedang login
             const filteredHistory = listData.filter(r => {
-                const isMyData = (r.npk || '').toString().trim() === myNpk;
+                const itemNpk = r.npk ? String(r.npk).trim() : '';
+                const isMyData = itemNpk === myNpk;
                 if (!isMyData) return false;
         
                 let reqYear = "", reqMonth = "";
                 if (r.tanggal) {
-                    const tStr = r.tanggal.toString().trim();
+                    const tStr = String(r.tanggal).trim();
                     const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
+                    
                     if (parts.length === 3) {
                         if (parts[0].length === 4) { 
+                            // Format: YYYY-MM-DD
                             reqYear = parts[0]; 
                             reqMonth = parseInt(parts[1], 10).toString(); 
                         } else if (parts[2].length === 4) { 
+                            // Format: DD-MM-YYYY
                             reqYear = parts[2]; 
                             reqMonth = parseInt(parts[1], 10).toString(); 
                         }
@@ -1622,6 +1635,10 @@
                 const isPending = statusLower === 'pending';
                 const durasiFormatted = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
         
+                // FALLBACK NAMA: Memastikan nama tidak pernah 'undefined' atau 'null'
+                const displayName = r.nama || r.namaKaryawan || r.username || (currentUser ? currentUser.nama : '') || 'Karyawan';
+                const displayNpk = r.npk || myNpk || '-';
+        
                 const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                         statusLower === 'diterima' || statusLower === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
@@ -1636,7 +1653,7 @@
                 return `
                     <tr class="hover:bg-slate-50/80 transition-all">
                         <td class="py-3.5 px-4 font-semibold text-slate-800">
-                            ${r.nama || '-'} <span class="text-slate-400 font-normal">(${r.npk || '-'})</span>
+                            ${displayName} <span class="text-slate-400 font-normal">(${displayNpk})</span>
                         </td>
                         <td class="py-3.5 px-4 text-slate-600">${r.cabang || '-'}</td>
                         <td class="py-3.5 px-4 text-slate-600">${r.tanggal || '-'}</td>
@@ -1661,11 +1678,11 @@
             }).join('') || `<tr><td colspan="8" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur pribadi Anda.</td></tr>`;
         }
         
+
         // ==========================================
-        // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
+        // RENDER TABEL AKTIVITAS TERKINI (OPTIMIZED FOR YYYY-MM-DD)
         // ==========================================
         function renderRecentActivities() {
-            // 1. Tangkap tbody (mencakup ID alternatif)
             const targetTbody = document.getElementById('table-aktivitas-terkini-body') || 
                                 document.getElementById('recent-activity-tbody') ||
                                 document.querySelector('#dashboard-recent-table') || 
@@ -1675,7 +1692,7 @@
         
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
         
-            // 2. Cek Role Pengguna
+            // 1. Cek Role Pengguna
             let userRole = 'user';
             if (typeof currentUserRole !== 'undefined' && currentUserRole) {
                 userRole = currentUserRole.toString().trim().toLowerCase();
@@ -1684,55 +1701,42 @@
             }
             const isAdmin = userRole === 'admin';
         
-            // 3. Filter Hak Akses (Admin = Semua, User = Hanya NPK Milik Sendiri)
-            const myNpk = currentUser ? (currentUser.npk || '').toString().trim() : '';
+            // 2. Filter Hak Akses
+            const myNpk = currentUser && currentUser.npk ? String(currentUser.npk).trim() : '';
             const filteredData = listData.filter(r => {
                 if (isAdmin) return true;
-                const itemNpk = (r.npk || r.NPK || '').toString().trim();
+                const itemNpk = String(r.npk || r.NPK || '').trim();
                 return myNpk !== '' && itemNpk === myNpk;
             });
         
-            // 4. Pengurutan Presisi Tanggal Terbaru ke Terlama (Descending)
+            // 3. Pengurutan Presisi (Sesuai Format Database YYYY-MM-DD)
             const sortedData = [...filteredData].sort((a, b) => {
-                const parseDateStr = (str) => {
-                    if (!str) return "";
-                    const s = str.toString().trim();
-                    const parts = s.includes('-') ? s.split('-') : s.split('/');
-                    if (parts.length === 3) {
-                        let y = parts[0].length === 4 ? parts[0] : parts[2];
-                        let m = ('0' + parts[1]).slice(-2);
-                        let d = ('0' + (parts[0].length === 4 ? parts[2] : parts[0])).slice(-2);
-                        return `${y}-${m}-${d}`;
-                    }
-                    return s;
-                };
+                // Karena format YYYY-MM-DD, string langsung bisa dibandingkan
+                const dateA = String(a.tanggal || a.Tanggal || '').trim();
+                const dateB = String(b.tanggal || b.Tanggal || '').trim();
         
-                const dateA = parseDateStr(a.tanggal || a.Tanggal);
-                const dateB = parseDateStr(b.tanggal || b.Tanggal);
-        
-                // A. Urutkan berdasarkan string ISO YYYY-MM-DD
+                // A. Urutkan Tanggal Terbaru -> Terlama (Descending)
                 if (dateA !== dateB) {
-                    return dateB.localeCompare(dateA);
+                    return dateB.localeCompare(dateA); 
                 }
         
-                // B. Jika Tanggal Sama, Urutkan dari Timestamp / ID
-                const timeA = Number(a.timestamp) || 0;
-                const timeB = Number(b.timestamp) || 0;
+                // B. Jika Tanggal Sama, Urutkan Berdasarkan ID / Timestamp Pengajuan
+                const timeA = Number(a.timestamp || a.Timestamp) || 0;
+                const timeB = Number(b.timestamp || b.Timestamp) || 0;
                 if (timeB !== timeA) return timeB - timeA;
         
-                const idA = Number((a.id || '').toString().replace(/\D/g, '')) || 0;
-                const idB = Number((b.id || '').toString().replace(/\D/g, '')) || 0;
+                const idA = Number(String(a.id || a.ID || '').replace(/\D/g, '')) || 0;
+                const idB = Number(String(b.id || b.ID || '').replace(/\D/g, '')) || 0;
                 return idB - idA;
             });
         
-            // 5. Ambil 10 data teratas
+            // 4. Ambil 10 data teratas setelah diurutkan
             const recentList = sortedData.slice(0, 10);
         
-            // 6. Render Sekaligus ke HTML
+            // 5. Render ke HTML
             targetTbody.innerHTML = recentList.map(r => {
-                // Safe Reading untuk Huruf Kecil mau pun Kapital
-                const vNama = r.nama || r.Nama || '-';
-                const vNpk = r.npk || r.NPK || '-';
+                const vNama = r.nama || r.Nama || r.namaKaryawan || r.username || (currentUser ? currentUser.nama : '') || 'Karyawan';
+                const vNpk = r.npk || r.NPK || myNpk || '-';
                 const vCabang = r.cabang || r.Cabang || '-';
                 const vTanggal = r.tanggal || r.Tanggal || '-';
                 const vJamMulai = r.jamMulai || r.Jam_Mulai || r.jam_mulai || '-';
@@ -1741,10 +1745,11 @@
                 const vStatus = r.status || r.Status || 'Pending';
                 const durasiNum = Number(r.durasiHours || r.durasi || 0).toFixed(1).replace('.', ',');
         
+                const statusLower = String(vStatus).toLowerCase();
                 const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(vStatus) : `
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                        vStatus.toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                        vStatus.toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        statusLower === 'diterima' || statusLower === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        statusLower === 'ditolak' || statusLower === 'rejected' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
                     }">
                         ${vStatus}
@@ -1758,7 +1763,7 @@
                             <div class="text-xs text-slate-400 font-mono font-normal">(${vNpk})</div>
                         </td>
                         <td class="py-3 px-4 text-slate-600">${vCabang}</td>
-                        <td class="py-3 px-4 text-slate-600">${vTanggal}</td>
+                        <td class="py-3 px-4 text-slate-600 font-medium">${vTanggal}</td>
                         <td class="py-3 px-4 text-slate-600 font-mono">
                             ${vJamMulai} - ${vJamSelesai} 
                             <br><span class="text-xs text-slate-400 font-sans">(${durasiNum}j)</span>
@@ -1787,8 +1792,8 @@
             const rawRequests = Array.isArray(overtimeRequests) ? overtimeRequests : [];
             let dashboardData = rawRequests;
             if (!isAdmin && currentUser && currentUser.npk) {
-                const myNpk = currentUser.npk.toString().trim();
-                dashboardData = rawRequests.filter(r => (r.npk || '').toString().trim() === myNpk);
+                const myNpk = String(currentUser.npk).trim();
+                dashboardData = rawRequests.filter(r => String(r.npk || r.NPK || '').trim() === myNpk);
             }
         
             // 3. Ambil nilai filter bulan & tahun
@@ -1797,19 +1802,21 @@
             const selectedBulan = elBulan ? elBulan.value : 'ALL';
             const selectedTahun = elTahun ? elTahun.value : new Date().getFullYear().toString();
         
-            // 4. Saring data secara aman dengan fleksibilitas delimiter tanggal (- atau /)
+            // 4. Saring data secara presisi (Format DB: YYYY-MM-DD)
             let filteredData = dashboardData.filter(r => {
                 if (!r.tanggal) return false;
                 
-                const tStr = r.tanggal.toString().trim();
-                const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
+                const tStr = String(r.tanggal).trim();
+                const parts = tStr.includes('-') ? tStr.split('-') : (tStr.includes('/') ? tStr.split('/') : []);
                 
                 let rTahun = "", rBulan = "";
                 if (parts.length === 3) {
                     if (parts[0].length === 4) { 
+                        // Format: YYYY-MM-DD
                         rTahun = parts[0]; 
                         rBulan = parseInt(parts[1], 10).toString(); 
                     } else if (parts[2].length === 4) { 
+                        // Format: DD-MM-YYYY
                         rTahun = parts[2]; 
                         rBulan = parseInt(parts[1], 10).toString(); 
                     }
@@ -1823,17 +1830,17 @@
         
             // Helper penentu status
             const isApproved = r => {
-                const s = (r.status || '').toString().toLowerCase();
+                const s = String(r.status || '').toLowerCase();
                 return s === 'diterima' || s === 'approved' || s === 'revisi';
             };
-            const isPending = r => (r.status || '').toString().toLowerCase() === 'pending';
+            const isPending = r => String(r.status || '').toLowerCase() === 'pending';
             const isRejected = r => {
-                const s = (r.status || '').toString().toLowerCase();
+                const s = String(r.status || '').toLowerCase();
                 return s === 'ditolak' || s === 'rejected';
             };
         
             // 5. Hitung KPI dari filteredData
-            const totalHours = filteredData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
+            const totalHours = filteredData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours || r.durasi) || 0) : 0), 0);
             const pendingCount = filteredData.filter(isPending).length;
             const approvedCount = filteredData.filter(isApproved).length;
             const rejectedCount = filteredData.filter(isRejected).length;
@@ -1849,20 +1856,45 @@
             if (elKpiApproved) elKpiApproved.innerText = `${approvedCount} Diterima`;
             if (elKpiRejected) elKpiRejected.innerText = `${rejectedCount} Ditolak`;
         
-            // 7. Render tabel riwayat ringkas pada dashboard
+            // 7. PERBAIKAN: Urutkan data dari TANGGAL TERBARU ke TERLAMA sebelum dirender
+            const sortedData = [...filteredData].sort((a, b) => {
+                const dateA = String(a.tanggal || a.Tanggal || '').trim();
+                const dateB = String(b.tanggal || b.Tanggal || '').trim();
+        
+                if (dateA !== dateB) {
+                    return dateB.localeCompare(dateA); // Descending (Terbaru -> Terlama)
+                }
+        
+                const idA = Number(String(a.id || a.ID || '').replace(/\D/g, '')) || 0;
+                const idB = Number(String(b.id || b.ID || '').replace(/\D/g, '')) || 0;
+                return idB - idA;
+            });
+        
+            // 8. Render tabel riwayat ringkas pada dashboard (5 data terbaru)
             const tbody = document.getElementById('dashboard-recent-table');
             if (tbody) {
-                tbody.innerHTML = filteredData.slice(0, 5).map(r => {
+                tbody.innerHTML = sortedData.slice(0, 5).map(r => {
+                    // Safe Reading Fallback Nama
+                    const vNama = r.nama || r.Nama || r.namaKaryawan || r.username || (currentUser ? currentUser.nama : '') || 'Karyawan';
+                    const vNpk = r.npk || r.NPK || '-';
+                    const vCabang = r.cabang || r.Cabang || '-';
+                    const vTanggal = r.tanggal || r.Tanggal || '-';
+                    const vJamMulai = r.jamMulai || r.Jam_Mulai || '-';
+                    const vJamSelesai = r.jamSelesai || r.Jam_Selesai || '-';
+                    const vPekerjaan = r.pekerjaan || r.Pekerjaan || '-';
+                    const durasiFormatted = Number(r.durasiHours || r.durasi || 0).toFixed(1).replace('.', ',');
+                    
                     const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : (r.status || 'Pending');
-                    const durasiFormatted = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
         
                     return `
                         <tr class="hover:bg-slate-50/80 transition-all">
-                            <td class="py-3 px-5 font-semibold">${r.nama || '-'} <span class="text-slate-400 font-normal">(${r.npk || '-'})</span></td>
-                            <td class="py-3 px-5">${r.cabang || '-'}</td>
-                            <td class="py-3 px-5">${r.tanggal || '-'}</td>
-                            <td class="py-3 px-5 font-mono">${r.jamMulai || '-'} - ${r.jamSelesai || '-'} (${durasiFormatted}j)</td>
-                            <td class="py-3 px-5 max-w-[180px] truncate" title="${r.pekerjaan || ''}">${r.pekerjaan || '-'}</td>
+                            <td class="py-3 px-5 font-semibold text-slate-800">
+                                ${vNama} <span class="text-slate-400 font-normal">(${vNpk})</span>
+                            </td>
+                            <td class="py-3 px-5 text-slate-600">${vCabang}</td>
+                            <td class="py-3 px-5 text-slate-600 font-medium">${vTanggal}</td>
+                            <td class="py-3 px-5 font-mono text-slate-600">${vJamMulai} - ${vJamSelesai} (${durasiFormatted}j)</td>
+                            <td class="py-3 px-5 max-w-[180px] truncate text-slate-600" title="${vPekerjaan}">${vPekerjaan}</td>
                             <td class="py-3 px-5 text-center">${badgeHTML}</td>
                         </tr>
                     `;
@@ -1952,54 +1984,78 @@
             generateDynamicNotifications(); // Re-render notifikasi
         }
 
+        // ==========================================
+        // UTILITY FILTER TAHUN & BULAN REAL-TIME
+        // ==========================================
         function populateYearFilter() {
-            const tahunSelect = document.getElementById('filter-report-tahun');
-            if (!tahunSelect) return;
-
+            // Array seluruh ID dropdown tahun yang ada di dalam HTML
+            const yearSelectIDs = [
+                'filter-report-tahun', 
+                'filter-dashboard-tahun', 
+                'filter-history-tahun'
+            ];
+        
             const currentYear = new Date().getFullYear();
             const startYear = currentYear - 3;
             const endYear = currentYear + 1;
-
-            tahunSelect.innerHTML = '';
-
-            for (let y = endYear; y >= startYear; y--) {
-                const opt = document.createElement('option');
-                opt.value = y.toString();
-                opt.innerText = y.toString();
-                if (y === currentYear) opt.selected = true;
-                tahunSelect.appendChild(opt);
-            }
+        
+            // PERBAIKAN 1: Isi seluruh dropdown tahun secara serentak
+            yearSelectIDs.forEach(id => {
+                const selectEl = document.getElementById(id);
+                if (selectEl) {
+                    selectEl.innerHTML = '';
+                    for (let y = endYear; y >= startYear; y--) {
+                        const opt = document.createElement('option');
+                        opt.value = y.toString();
+                        opt.innerText = y.toString();
+                        if (y === currentYear) opt.selected = true;
+                        selectEl.appendChild(opt);
+                    }
+                }
+            });
         }
-
+        
         function initRealtimeFilterDates() {
             const now = new Date();
             const currentMonth = (now.getMonth() + 1).toString();
-
-            const bulanSelect = document.getElementById('filter-report-bulan');
-            if (bulanSelect) {
-                bulanSelect.value = currentMonth;
-            }
-
+        
+            // Set default bulan berjalan untuk Reports dan Dashboard
+            const monthSelectIDs = ['filter-report-bulan', 'filter-dashboard-bulan', 'filter-history-bulan'];
+            monthSelectIDs.forEach(id => {
+                const bulanSelect = document.getElementById(id);
+                if (bulanSelect) {
+                    bulanSelect.value = currentMonth;
+                }
+            });
+        
+            // Jalankan pengisian dropdown tahun
             populateYearFilter();
         }
-
+        
+        // ==========================================
+        // ROUTING & NAVIGASI HALAMAN
+        // ==========================================
         function navigateTo(pageId) {
             activePage = pageId;
+            
+            // Sembunyikan semua section halaman
             document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
             
+            // Tampilkan halaman tujuan
             const target = document.getElementById(`page-${pageId}`);
             if (target) target.classList.remove('hidden');
         
             if (typeof closeSidebar === 'function') closeSidebar();
             if (typeof updateActiveSidebar === 'function') updateActiveSidebar(pageId);
-            
-            // Routing render tampilan sesuai halaman
+        
+            // PERBAIKAN 2: Routing render tampilan lengkap sesuai halaman
             if (pageId === 'dashboard') {
-                renderDashboardView();
+                if (typeof renderDashboardView === 'function') renderDashboardView();
+                if (typeof renderRecentActivities === 'function') renderRecentActivities(); // Pastikan tabel Aktivitas Terkini di-render
             } else if (pageId === 'history') {
-                renderHistoryView();
+                if (typeof renderHistoryView === 'function') renderHistoryView();
             } else if (pageId === 'approvals') {
-                renderApprovalsView();
+                if (typeof renderApprovalsView === 'function') renderApprovalsView();
             } else if (pageId === 'reports' || pageId === 'reports-payroll') {
                 if (typeof renderReportsView === 'function') {
                     renderReportsView();
@@ -2007,7 +2063,11 @@
                     loadReportsView();
                 }
             } else if (pageId === 'karyawan') {
-                if (typeof fetchKaryawanList === 'function') fetchKaryawanList();
+                if (typeof fetchKaryawanList === 'function') {
+                    fetchKaryawanList();
+                } else if (typeof renderKaryawanTable === 'function') {
+                    renderKaryawanTable();
+                }
             } else if (pageId === 'new-request') {
                 if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
             }
