@@ -1253,6 +1253,45 @@
                 }
             });
         });
+
+        // ==========================================
+        // FUNGSI UTAMA LOAD DATA DARI SERVER
+        // ==========================================
+        async function loadAllDataServer() {
+            try {
+                // 1. Tampilkan indikator loading jika diperlukan / log proses
+                console.log("Memuat data lembur dari server...");
+        
+                // 2. Panggil action 'getAllOvertimeData' ke backend
+                const response = await fetchFromBackend('getAllOvertimeData');
+        
+                // 3. Jika berhasil, simpan ke variabel global overtimeRequests
+                if (response && response.success && Array.isArray(response.data)) {
+                    overtimeRequests = response.data;
+        
+                    // 4. Ambil data adjustment jika berada di halaman report
+                    if (typeof fetchServerAdjustments === 'function') {
+                        await fetchServerAdjustments();
+                    }
+        
+                    // 5. Render ulang seluruh tampilan (Dashboard, History, Approvals, Reports)
+                    if (typeof renderAllViews === 'function') {
+                        renderAllViews();
+                    } else {
+                        // Fallback jika renderAllViews dipanggil terpisah
+                        if (typeof renderDashboardView === 'function') renderDashboardView();
+                        if (typeof renderRecentActivities === 'function') renderRecentActivities();
+                        if (typeof renderHistoryView === 'function') renderHistoryView();
+                    }
+        
+                    console.log(`Berhasil memuat ${overtimeRequests.length} data lembur.`);
+                } else {
+                    console.warn("Gagal memuat data dari server:", response ? response.message : "Response kosong");
+                }
+            } catch (error) {
+                console.error("Error saat memuat data server:", error);
+            }
+        }
         
         async function fetchFromBackend(action, payload = {}) {
             try {
