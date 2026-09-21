@@ -671,7 +671,6 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-rekapitulasi-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
-                                <tfoot id="table-rekapitulasi-foot" class="bg-amber-50/90 font-bold text-xs text-slate-800 border-t-2 border-amber-200"></tfoot>
                             </table>
                         </div>
                     </div>
@@ -3236,41 +3235,57 @@
             }
         }
         
-        // 2. FUNGSI SWITCH MODE REKAPITULASI
+        // ==========================================
+        // 2. FUNGSI SWITCH MODE REKAPITULASI (OPTIMIZED & INSTANT)
+        // ==========================================
         async function switchRekapViewMode(mode) {
+            // 1. Update state mode rekapitulasi dan log harian agar sinkron
             reportModeRekap = mode;
+            reportModeLog = mode;
             rekapViewMode = mode;
         
+            // 2. Update tampilan visual tombol secara instan
             const btnAsli = document.getElementById('btn-view-asli');
             const btnAdjust = document.getElementById('btn-view-adjust');
         
             if (btnAsli && btnAdjust) {
-                if (mode === 'asli') {
-                    btnAsli.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                } else {
-                    btnAdjust.className = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                    btnAsli.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-                }
+                const activeClass = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                const inactiveClass = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+        
+                btnAsli.className = (mode === 'asli') ? activeClass : inactiveClass;
+                btnAdjust.className = (mode === 'adjust') ? activeClass : inactiveClass;
             }
         
-            // Ambil data terbaru dari server lalu update tabel
-            await fetchServerAdjustments();
-        }
-        
-    
-        // 3. FUNGSI SWITCH MODE LOG HARIAN
-        async function switchClaimViewMode(mode) {
-            // 1. Update state global
-            reportModeLog = mode;
-            claimViewMode = mode;
-        
-            // 2. Ambil data penyesuaian dari server jika memilih mode adjust
-            if (typeof fetchServerAdjustments === 'function') {
+            // 3. Cek data adjustment: Ambil dari server HANYA JIKA memori lokal belum punya data
+            const hasLocalAdjustments = typeof adjustmentsMap !== 'undefined' && Object.keys(adjustmentsMap).length > 0;
+            if (mode === 'adjust' && !hasLocalAdjustments && typeof fetchServerAdjustments === 'function') {
                 await fetchServerAdjustments();
             }
         
-            // 3. Render ulang tampilan tabel agar data sesuai mode terpanggil
+            // 4. PERBAIKAN UTAMA: Langsung render ulang tabel secara instan dari memori
+            if (typeof renderReportsView === 'function') {
+                renderReportsView();
+            }
+        }
+        
+    
+        // ==========================================
+        // 3. FUNGSI SWITCH MODE LOG HARIAN (OPTIMIZED & INSTANT)
+        // ==========================================
+        async function switchClaimViewMode(mode) {
+            // 1. Update seluruh state global mode sekaligus
+            reportModeLog = mode;
+            reportModeRekap = mode;
+            claimViewMode = mode;
+        
+            // 2. Cek data adjustment: Ambil dari server HANYA JIKA memori lokal belum punya data
+            const hasLocalAdjustments = typeof adjustmentsMap !== 'undefined' && Object.keys(adjustmentsMap).length > 0;
+            
+            if (mode === 'adjust' && !hasLocalAdjustments && typeof fetchServerAdjustments === 'function') {
+                await fetchServerAdjustments();
+            }
+        
+            // 3. Render ulang tampilan tabel dari memori lokal (Instan & Tanpa Delay)
             if (typeof renderReportsView === 'function') {
                 renderReportsView();
             }
@@ -3288,55 +3303,76 @@
             }
         }
         
-        // 4. PEMBAHARUAN FUNGSI RENDER TAMPILAN LAPORAN (REAL-TIME DATA & KONTROL PERSEN ADJUST)
+        // ==========================================
+        // 4. PEMBAHARUAN FUNGSI RENDER TAMPILAN LAPORAN (SAFE & FULLY BUG-FREE)
+        // ==========================================
         function renderReportsView() {
             const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
             const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
             const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
         
-            const filteredRequests = overtimeRequests.filter(r => {
+            const rawData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
+        
+            // 1. Saring Data dengan Safe Guard Tanggal & Cabang
+            const filteredRequests = rawData.filter(r => {
                 let reqYear = "", reqMonth = "";
-                if (r.tanggal) {
-                    const parts = r.tanggal.toString().split('-');
+                if (r.tanggal || r.Tanggal) {
+                    const tStr = String(r.tanggal || r.Tanggal).trim();
+                    const parts = tStr.includes('-') ? tStr.split('-') : (tStr.includes('/') ? tStr.split('/') : []);
+                    
                     if (parts.length === 3) {
-                        reqYear = parts[0];
-                        reqMonth = parseInt(parts[1], 10).toString();
+                        if (parts[0].length === 4) {
+                            reqYear = parts[0];
+                            reqMonth = parseInt(parts[1], 10).toString();
+                        } else if (parts[2].length === 4) {
+                            reqYear = parts[2];
+                            reqMonth = parseInt(parts[1], 10).toString();
+                        }
                     }
                 }
         
-                const targetCabang = selectedCabang.toUpperCase();
-                const sheetCabang = (r.cabang || '').toString().toUpperCase();
+                const targetCabang = String(selectedCabang).toUpperCase();
+                const sheetCabang = String(r.cabang || r.Cabang || '').toUpperCase();
                 const isCabangMatch = sheetCabang.includes(targetCabang) || targetCabang.includes(sheetCabang);
-                const statusClean = (r.status || '').toString().toLowerCase();
+                
+                const statusClean = String(r.status || r.Status || '').toLowerCase();
                 const isApproved = (statusClean === 'diterima' || statusClean === 'approved' || statusClean === 'revisi');
         
                 if (isAdmin) {
                     return isApproved && isCabangMatch && (reqYear ? reqYear === selectedTahun : true) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
                 } else {
-                    return isApproved && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
+                    const myNpk = String(currentUser ? currentUser.npk : '').trim();
+                    const itemNpk = String(r.npk || r.NPK || '').trim();
+                    return isApproved && itemNpk === myNpk;
                 }
             });
         
-            filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
+            // Urutkan berdasarkan NPK
+            filteredRequests.sort((a, b) => (parseInt(a.npk || a.NPK, 10) || 0) - (parseInt(b.npk || b.NPK, 10) || 0));
         
-            // TABEL REKAPITULASI UPAH
+            // 2. TABEL REKAPITULASI UPAH (KHUSUS ADMIN)
             if (isAdmin) {
                 const rekapTbody = document.getElementById('table-rekapitulasi-body');
                 const rekapTfoot = document.getElementById('table-rekapitulasi-foot');
                 const employeeMap = {};
         
                 filteredRequests.forEach(r => {
-                    const npkKey = (r.npk || '').toString().trim();
+                    const npkKey = String(r.npk || r.NPK || '').trim();
+                    if (!npkKey) return;
+        
+                    // Fallback Nama
+                    const displayName = r.nama || r.Nama || r.namaKaryawan || r.username || 'Karyawan';
+        
                     if (!employeeMap[npkKey]) {
-                        let gajiPokok = Number(r.gaji) || 0;
-                        if (gajiPokok === 0 && karyawanList && karyawanList.length > 0) {
-                            const found = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
-                            if (found) gajiPokok = Number(found.gaji) || 0;
+                        let gajiPokok = Number(r.gaji || r.Gaji) || 0;
+                        if (gajiPokok === 0 && Array.isArray(karyawanList) && karyawanList.length > 0) {
+                            const found = karyawanList.find(k => k.npk && String(k.npk).trim() === npkKey);
+                            if (found) gajiPokok = Number(found.gaji || found.Gaji) || 0;
                         }
         
                         employeeMap[npkKey] = { 
-                            nama: r.nama, 
+                            nama: displayName, 
                             npk: npkKey, 
                             gaji: gajiPokok, 
                             asliL1: 0, 
@@ -3346,13 +3382,14 @@
                         };
                     }
         
-                    const durAsli = Number(r.durasiHours) || 0;
+                    const durAsli = Number(r.durasiHours || r.durasi) || 0;
                     employeeMap[npkKey].asliL1 += Math.min(durAsli, 1);
                     employeeMap[npkKey].asliL2 += Math.max(0, durAsli - 1);
         
                     let durAdj = durAsli;
-                    if (adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[r.id]) {
-                        durAdj = Number(adjustmentsMap[npkKey].items[r.id].durasiHours) || 0;
+                    const reqIdStr = String(r.id || r.ID || '');
+                    if (typeof adjustmentsMap !== 'undefined' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[reqIdStr]) {
+                        durAdj = Number(adjustmentsMap[npkKey].items[reqIdStr].durasiHours) || 0;
                     }
                     employeeMap[npkKey].adjL1 += Math.min(durAdj, 1);
                     employeeMap[npkKey].adjL2 += Math.max(0, durAdj - 1);
@@ -3364,15 +3401,13 @@
                 let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
                 if (rekapTbody) {
                     rekapTbody.innerHTML = employeeList.map((emp, idx) => {
-                        // Pilih jam berdasarkan mode yang aktif
-                        const isAdjustMode = reportModeRekap === 'adjust';
+                        const isAdjustMode = (typeof reportModeRekap !== 'undefined' ? reportModeRekap : 'asli') === 'adjust';
                         const l1 = isAdjustMode ? emp.adjL1 : emp.asliL1;
                         const l2 = isAdjustMode ? emp.adjL2 : emp.asliL2;
         
                         const totalPoin = (l1 * 1.5) + (l2 * 2.7);
                         const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
         
-                        // Hitung % rasio penyesuaian untuk ditampilkan pada tombol
                         const poinAsli = (emp.asliL1 * 1.5) + (emp.asliL2 * 2.7);
                         const poinAdj = (emp.adjL1 * 1.5) + (emp.adjL2 * 2.7);
                         const persenAdjust = poinAsli > 0 ? Math.round((poinAdj / poinAsli) * 100) : 100;
@@ -3417,15 +3452,19 @@
                 }
             }
         
-            // TABEL LOG RINCIAN HARIAN
+            // 3. TABEL LOG RINCIAN HARIAN
             const claimTbody = document.getElementById('table-claim-payroll-body');
             if (claimTbody) {
                 claimTbody.innerHTML = filteredRequests.map((r, idx) => {
-                    const npkKey = (r.npk || '').toString().trim();
-                    let dur = Number(r.durasiHours) || 0;
+                    const npkKey = String(r.npk || r.NPK || '').trim();
+                    const displayName = r.nama || r.Nama || r.namaKaryawan || r.username || 'Karyawan';
+                    const reqIdStr = String(r.id || r.ID || '');
         
-                    if (reportModeLog === 'adjust' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[r.id]) {
-                        dur = Number(adjustmentsMap[npkKey].items[r.id].durasiHours) || 0;
+                    let dur = Number(r.durasiHours || r.durasi) || 0;
+        
+                    const isLogAdjustMode = (typeof reportModeLog !== 'undefined' ? reportModeLog : 'asli') === 'adjust';
+                    if (isLogAdjustMode && typeof adjustmentsMap !== 'undefined' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[reqIdStr]) {
+                        dur = Number(adjustmentsMap[npkKey].items[reqIdStr].durasiHours) || 0;
                     }
         
                     const l1 = Math.min(dur, 1);
@@ -3435,15 +3474,15 @@
                     return `
                         <tr class="hover:bg-slate-50 transition-all">
                             <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                            <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
-                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
+                            <td class="py-3 px-4 font-bold border-r border-slate-100">${displayName}</td>
+                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${npkKey || '-'}</td>
                             <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
                             <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
                             <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
                             <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
                             <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
-                            <td class="py-3 px-4">${r.pekerjaan}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal || r.Tanggal || '-'}</td>
+                            <td class="py-3 px-4">${r.pekerjaan || r.Pekerjaan || '-'}</td>
                         </tr>
                     `;
                 }).join('') || `<tr><td colspan="10" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
