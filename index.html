@@ -543,6 +543,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs text-slate-700">
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -1248,45 +1249,6 @@
             }
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- 1. Tangkap parameter URL dengan aman ---
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlUser = urlParams.get('username');
-            const urlPass = urlParams.get('password');
-    
-            if (urlUser && urlPass) {
-                const userInput = document.getElementById('login-username');
-                const passInput = document.getElementById('login-password');
-                if (userInput && passInput) {
-                    userInput.value = decodeURIComponent(urlUser.replace(/\+/g, ' '));
-                    passInput.value = urlPass;
-                }
-            }
-    
-            // --- 2. Time picker universal yang aman dari error F12 ---
-            document.addEventListener('click', function(e) {
-                const timeInput = e.target.closest('input[type="time"]');
-                if (timeInput && typeof timeInput.showPicker === 'function') {
-                    try {
-                        timeInput.showPicker();
-                    } catch (err) {
-                        // Diabaikan jika browser membatasi
-                    }
-                }
-            });
-    
-            // --- 2. Kode pemilih waktu (time picker) universal yang kita buat sebelumnya ---
-            document.addEventListener('click', function(e) {
-                if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'time') {
-                    if (typeof e.target.showPicker === 'function') {
-                        try {
-                            e.target.showPicker();
-                        } catch (err) {}
-                    }
-                }
-            });
-        });
-
         async function fetchFromBackend(action, payload = {}) {
             try {
                 // Cukup panggil endpoint internal Vercel
@@ -1308,7 +1270,6 @@
                 return { success: false, message: error.toString() };
             }
         }
-
 
         // ==========================================
         // 1. INISIALISASI SESI
@@ -1347,12 +1308,16 @@
             }
 
             setInterval(() => {
-                if (currentUser) {
+                if (
+                    document
+                        .getElementById('login-screen')
+                        ?.classList
+                        .contains('hidden')
+                ) {
                     loadAllDataServer();
                 }
             }, 10000);
-            
-        };
+        }
 
         // ==========================================
         // 2. SISTEM LOGIN & LOGOUT
@@ -1633,6 +1598,18 @@
             `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada aktivitas lembur tercatat.</td></tr>`;
         }
 
+        function normalizeArray(value) {
+            if (Array.isArray(value)) {
+                return value;
+            }
+        
+            if (value && typeof value === 'object') {
+                return Object.values(value);
+            }
+        
+            return [];
+        }
+
         // ==========================================
         // SINKRONISASI DATA UTAMA DARI SERVER
         // ==========================================
@@ -1649,11 +1626,11 @@
                 }
                 
                 if (resKaryawan && resKaryawan.success) {
-                    karyawanList = resKaryawan.data || [];
+                    karyawanList = normalizeArray(resKaryawan?.data);
                 }
 
                 if (resOvertime && resOvertime.success) {
-                    overtimeRequests = resOvertime.data || [];
+                    overtimeRequests = normalizeArray(resOvertime?.data);
                     
                     // PERBAIKAN: Urutkan berdasarkan timestamp (dari yang terbesar/terbaru ke terlama)
                     overtimeRequests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -1666,156 +1643,271 @@
             }
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         // ==========================================
         // 3. RENDER DASHBOARD VIEW
         // ==========================================
         function renderDashboardView() {
-            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
-            
-            let dashboardData = overtimeRequests;
+            const isAdmin =
+                currentUser &&
+                String(currentUser.role || '').toLowerCase() === 'admin';
+        
+            const requests = Array.isArray(overtimeRequests)
+                ? overtimeRequests
+                : [];
+        
+            // Filter berdasarkan hak akses
+            let dashboardData = requests;
+        
             if (!isAdmin && currentUser && currentUser.npk) {
-                dashboardData = overtimeRequests.filter(r => (r.npk || '').toString().trim() === currentUser.npk.toString().trim());
+                const currentNpk = String(currentUser.npk).trim();
+        
+                dashboardData = requests.filter(request =>
+                    String(request.npk || '').trim() === currentNpk
+                );
             }
-
-            const isApproved = r => {
-                const s = (r.status || '').toString().toLowerCase();
-                return s === 'diterima' || s === 'approved';
-            };
-            
-            const isPending = r => {
-                const s = (r.status || '').toString().toLowerCase();
-                return s === 'pending';
-            };
-            
-            const isRejected = r => {
-                const s = (r.status || '').toString().toLowerCase();
-                return s === 'ditolak' || s === 'rejected';
-            };
-
-            const totalHours = dashboardData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
-            const pendingCount = dashboardData.filter(isPending).length;
-            const approvedCount = dashboardData.filter(isApproved).length;
-            const rejectedCount = dashboardData.filter(isRejected).length;
-
-            const elTotalHours = document.getElementById('kpi-total-hours');
-            const elPending = document.getElementById('kpi-pending-count');
-            const elApproved = document.getElementById('kpi-approved-count');
-            const elRejected = document.getElementById('kpi-rejected-count');
-
-            if (elTotalHours) elTotalHours.innerText = `${totalHours.toFixed(1).replace('.', ',')} Jam`;
-            if (elPending) elPending.innerText = `${pendingCount} Pending`;
-            if (elApproved) elApproved.innerText = `${approvedCount} Diterima`;
-            if (elRejected) elRejected.innerText = `${rejectedCount} Ditolak`;
-
-            const pendingAdmin = overtimeRequests.filter(isPending).length;
-            const badgePending = document.getElementById('badge-pending-count');
-            if (badgePending) badgePending.innerText = pendingAdmin;
-
-            // Contoh logika filter berdasarkan bulan & tahun yang dipilih
+        
+            // Filter bulan dan tahun
             const elBulan = document.getElementById('filter-dashboard-bulan');
             const elTahun = document.getElementById('filter-dashboard-tahun');
-            const selectedBulan = elBulan ? elBulan.value : 'ALL';
-            const selectedTahun = elTahun ? elTahun.value : new Date().getFullYear().toString();
-            
-            let filteredData = overtimeRequests.filter(r => {
-                if (!r.tanggal) return false;
-                const parts = r.tanggal.split('-'); // format YYYY-MM-DD
-                const rTahun = parts[0];
-                const rBulan = parts[1];
-            
-                // Jika filter diset "ALL" atau "Seluruh"
-                if (selectedBulan === 'ALL') return true; 
-            
-                // Cocokkan bulan dan tahun
-                return rBulan == selectedBulan && rTahun == selectedTahun;
-            });
-
-            const tbody = document.getElementById('dashboard-recent-table');
-            if (tbody) {
-                tbody.innerHTML = dashboardData.slice(0, 5).map(r => `
-                    <tr class="hover:bg-slate-50/80 transition-all">
-                        <td class="py-3 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
-                        <td class="py-3 px-5">${r.cabang}</td>
-                        <td class="py-3 px-5">${r.tanggal}</td>
-                        <td class="py-3 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
-                        <td class="py-3 px-5">${r.pekerjaan}</td>
-                        <td class="py-3 px-5 text-center">${getStatusBadge(r.status)}</td>
-                    </tr>
-                `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada pengajuan lembur yang tercatat.</td></tr>`;
-            }
-        }
-
-        // ==========================================
-        // 4. RENDER HISTORY VIEW (RIWAYAT PRIBADI)
-        // ==========================================
-        function renderDashboardView() {
-            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
-            
-            // 1. Filter awal berdasarkan hak akses (Admin vs Karyawan biasa)
-            let dashboardData = overtimeRequests;
-            if (!isAdmin && currentUser && currentUser.npk) {
-                dashboardData = overtimeRequests.filter(r => (r.npk || '').toString().trim() === currentUser.npk.toString().trim());
-            }
         
-            // 2. Ambil nilai filter bulan & tahun (berikan pengaman jika elemen HTML-nya belum dibuat)
-            const elBulan = document.getElementById('filter-dashboard-bulan');
-            const elTahun = document.getElementById('filter-dashboard-tahun');
-            const selectedBulan = elBulan ? elBulan.value : 'ALL';
-            const selectedTahun = elTahun ? elTahun.value : new Date().getFullYear().toString();
+            const selectedBulan = elBulan
+                ? elBulan.value
+                : 'ALL';
         
-            // 3. Saring data berdasarkan filter bulan & tahun
-            let filteredData = dashboardData.filter(r => {
-                if (!r.tanggal) return false;
-                const parts = r.tanggal.split('-'); // format YYYY-MM-DD
-                const rTahun = parts[0];
-                const rBulan = parts[1];
-            
-                if (selectedBulan === 'ALL') return true; 
-            
-                // Menggunakan perbandingan string/angka yang aman
-                return Number(rBulan) === Number(selectedBulan) && rTahun === selectedTahun;
+            const selectedTahun = elTahun
+                ? elTahun.value
+                : String(new Date().getFullYear());
+        
+            const filteredData = dashboardData.filter(request => {
+                if (!request.tanggal) {
+                    return false;
+                }
+        
+                const tanggal = String(request.tanggal).trim();
+                const parts = tanggal.includes('-')
+                    ? tanggal.split('-')
+                    : tanggal.split('/');
+        
+                if (parts.length < 2) {
+                    return false;
+                }
+        
+                let tahun;
+                let bulan;
+        
+                // Format YYYY-MM-DD
+                if (parts[0].length === 4) {
+                    tahun = parts[0];
+                    bulan = Number(parts[1]);
+                } else {
+                    // Fallback format DD/MM/YYYY
+                    tahun = parts[2];
+                    bulan = Number(parts[1]);
+                }
+        
+                if (selectedBulan === 'ALL') {
+                    return tahun === selectedTahun;
+                }
+        
+                return (
+                    tahun === selectedTahun &&
+                    bulan === Number(selectedBulan)
+                );
             });
         
-            const isApproved = r => {
-                const s = (r.status || '').toString().toLowerCase();
-                return s === 'diterima' || s === 'approved';
+            const getStatus = request =>
+                String(request.status || '').toLowerCase();
+        
+            const isApproved = request => {
+                const status = getStatus(request);
+        
+                return (
+                    status === 'diterima' ||
+                    status === 'approved'
+                );
             };
-            const isPending = r => (r.status || '').toString().toLowerCase() === 'pending';
-            const isRejected = r => {
-                const s = (r.status || '').toString().toLowerCase();
-                return s === 'ditolak' || s === 'rejected';
+        
+            const isPending = request =>
+                getStatus(request) === 'pending';
+        
+            const isRejected = request => {
+                const status = getStatus(request);
+        
+                return (
+                    status === 'ditolak' ||
+                    status === 'rejected'
+                );
             };
         
-            // 4. Hitung KPI BERDASARKAN filteredData (bukan dashboardData mentah)
-            const totalHours = filteredData.reduce((acc, r) => acc + (isApproved(r) ? (Number(r.durasiHours) || 0) : 0), 0);
-            const pendingCount = filteredData.filter(isPending).length;
-            const approvedCount = filteredData.filter(isApproved).length;
-            const rejectedCount = filteredData.filter(isRejected).length;
+            // Hitung KPI berdasarkan data yang sudah difilter
+            const totalHours = filteredData.reduce((total, request) => {
+                return total + (
+                    isApproved(request)
+                        ? Number(request.durasiHours) || 0
+                        : 0
+                );
+            }, 0);
         
-            // Update elemen DOM KPI...
-            document.getElementById('kpi-total-hours').innerText = `${totalHours.toFixed(1).replace('.', ',')} Jam`;
-            document.getElementById('kpi-pending-count').innerText = `${pendingCount} Pending`;
-            document.getElementById('kpi-approved-count').innerText = `${approvedCount} Diterima`;
-            document.getElementById('kpi-rejected-count').innerText = `${rejectedCount} Ditolak`;
+            const pendingCount =
+                filteredData.filter(isPending).length;
         
-            // Render tabel menggunakan filteredData
-            const tbody = document.getElementById('dashboard-recent-table');
-            if (tbody) {
-                tbody.innerHTML = filteredData.slice(0, 5).map(r => `
-                    <tr class="hover:bg-slate-50/80 transition-all">
-                        <td class="py-3 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
-                        <td class="py-3 px-5">${r.cabang}</td>
-                        <td class="py-3 px-5">${r.tanggal}</td>
-                        <td class="py-3 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
-                        <td class="py-3 px-5">${r.pekerjaan}</td>
-                        <td class="py-3 px-5 text-center">${getStatusBadge(r.status)}</td>
-                    </tr>
-                `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada pengajuan lembur yang tercatat pada periode ini.</td></tr>`;
+            const approvedCount =
+                filteredData.filter(isApproved).length;
+        
+            const rejectedCount =
+                filteredData.filter(isRejected).length;
+        
+            // Update KPI dengan aman
+            const elTotalHours =
+                document.getElementById('kpi-total-hours');
+        
+            const elPending =
+                document.getElementById('kpi-pending-count');
+        
+            const elApproved =
+                document.getElementById('kpi-approved-count');
+        
+            const elRejected =
+                document.getElementById('kpi-rejected-count');
+        
+            if (elTotalHours) {
+                elTotalHours.innerText =
+                    `${totalHours.toFixed(1).replace('.', ',')} Jam`;
             }
+        
+            if (elPending) {
+                elPending.innerText =
+                    `${pendingCount} Pending`;
+            }
+        
+            if (elApproved) {
+                elApproved.innerText =
+                    `${approvedCount} Diterima`;
+            }
+        
+            if (elRejected) {
+                elRejected.innerText =
+                    `${rejectedCount} Ditolak`;
+            }
+        
+            // Badge pending admin
+            const badgePending =
+                document.getElementById('badge-pending-count');
+        
+            if (badgePending) {
+                const totalPendingAdmin =
+                    requests.filter(isPending).length;
+        
+                badgePending.innerText =
+                    totalPendingAdmin;
+            }
+        
+            // Render tabel aktivitas terkini
+            const tbody =
+                document.getElementById('dashboard-recent-table');
+        
+            if (!tbody) {
+                return;
+            }
+        
+            const rows = filteredData
+                .slice()
+                .sort((a, b) => {
+                    const timeA = Number(a.timestamp) || Number(a.id) || 0;
+                    const timeB = Number(b.timestamp) || Number(b.id) || 0;
+        
+                    return timeB - timeA;
+                })
+                .slice(0, 5)
+                .map(request => {
+                    const duration =
+                        Number(request.durasiHours) || 0;
+        
+                    const statusBadge =
+                        typeof getStatusBadge === 'function'
+                            ? getStatusBadge(request.status)
+                            : String(request.status || 'Pending');
+        
+                    return `
+                        <tr class="hover:bg-slate-50/80 transition-all">
+                            <td class="py-3 px-5 font-semibold">
+                                ${escapeHtml(request.nama || '-')}
+                                <span class="text-slate-400 font-normal">
+                                    (${escapeHtml(request.npk || '-')})
+                                </span>
+                            </td>
+        
+                            <td class="py-3 px-5">
+                                ${escapeHtml(request.cabang || '-')}
+                            </td>
+        
+                            <td class="py-3 px-5">
+                                ${escapeHtml(request.tanggal || '-')}
+                            </td>
+        
+                            <td class="py-3 px-5 font-mono">
+                                ${escapeHtml(request.jamMulai || '-')}
+                                -
+                                ${escapeHtml(request.jamSelesai || '-')}
+                                (${duration.toFixed(1).replace('.', ',')}j)
+                            </td>
+        
+                            <td class="py-3 px-5">
+                                ${escapeHtml(request.pekerjaan || '-')}
+                            </td>
+        
+                            <td class="py-3 px-5 text-center">
+                                ${statusBadge}
+                            </td>
+        
+                            <td class="py-3 px-5 text-center">
+                                ${
+                                    typeof openEditModal === 'function'
+                                        ? `
+                                            <button
+                                                type="button"
+                                                onclick="openEditModal('${escapeHtml(request.id || '')}')"
+                                                class="text-blue-600 hover:text-blue-800"
+                                                title="Edit Pengajuan">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                          `
+                                        : ''
+                                }
+                            </td>
+                        </tr>
+                    `;
+                })
+                .join('');
+        
+            tbody.innerHTML = rows || `
+                <tr>
+                    <td
+                        colspan="7"
+                        class="text-center py-6 text-slate-400">
+                        Belum ada pengajuan lembur yang tercatat
+                        pada periode ini.
+                    </td>
+                </tr>
+            `;
         }
 
         setInterval(function() {
-            if (document.getElementById('login-screen').classList.contains('hidden')) {
+            const loginScreen = document.getElementById('login-screen');
+        
+            if (
+                loginScreen &&
+                loginScreen.classList.contains('hidden')
+            ) {
                 loadAllDataServer();
             }
         }, 45000);
@@ -1993,16 +2085,24 @@
         }
 
         function toggleSubmenu(id) {
-            const el = document.getElementById(id);
-            const arrow = document.getElementById('arrow-' + id); // Sesuaikan dengan id elemen panah Anda
-            if (el) {
-                if (el.classList.contains('hidden')) {
-                    el.classList.remove('hidden');
-                    if (arrow) arrow.classList.add('rotate-180');
-                } else {
-                    el.classList.add('hidden');
-                    if (arrow) arrow.classList.remove('rotate-180');
-                }
+            const submenu = document.getElementById(id);
+        
+            if (!submenu) return;
+        
+            const arrowMap = {
+                'my-overtime-submenu': 'my-overtime-arrow'
+            };
+        
+            const arrow = document.getElementById(
+                arrowMap[id] || `arrow-${id}`
+            );
+        
+            const isHidden = submenu.classList.contains('hidden');
+        
+            submenu.classList.toggle('hidden', !isHidden);
+        
+            if (arrow) {
+                arrow.classList.toggle('rotate-180', isHidden);
             }
         }
 
@@ -2037,65 +2137,36 @@
         }
 
         function handleGlobalSearch(query) {
-            const q = (query || '').toLowerCase().trim();
-            
-            // Pastikan variabel activePage aman dari error reference
-            const currentPage = typeof activePage !== 'undefined' ? activePage : '';
+            const searchQuery = String(query || '')
+                .toLowerCase()
+                .trim();
         
-            // 1. Jika sedang di menu Data Karyawan
-            if (currentPage === 'karyawan') {
-                if (typeof renderKaryawanTable === 'function') {
-                    renderKaryawanTable();
-                }
-                return;
-            }
+            const selectors = [
+                '#history-table-body tr',
+                '#approvals-table-body tr',
+                '#table-rekapitulasi-body tr',
+                '#table-claim-payroll-body tr',
+                '#dashboard-recent-table tr',
+                '#karyawan-table-body tr'
+            ];
         
-            // 2. Jika sedang di menu History
-            if (currentPage === 'history') {
-                const rows = document.querySelectorAll('#history-table-body tr');
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
+            selectors.forEach(selector => {
+                document.querySelectorAll(selector).forEach(row => {
+                    const text = String(row.textContent || '')
+                        .toLowerCase();
+        
+                    row.style.display =
+                        !searchQuery || text.includes(searchQuery)
+                            ? ''
+                            : 'none';
                 });
-                return;
-            }
+            });
         
-            // 3. Jika sedang di menu Approvals
-            if (currentPage === 'approvals') {
-                const rows = document.querySelectorAll('#approvals-table-body tr');
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
-                });
-                return;
-            }
-        
-            // 4. Jika sedang di menu Reports / Payroll
-            if (currentPage === 'reports') {
-                const rowsRekap = document.querySelectorAll('#table-rekapitulasi-body tr');
-                rowsRekap.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
-                });
-        
-                const rowsClaim = document.querySelectorAll('#table-claim-payroll-body tr');
-                rowsClaim.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
-                });
-                return;
-            }
-        
-            // 5. Jika sedang di menu Dashboard
-            if (currentPage === 'dashboard') {
-                const rows = document.querySelectorAll('#dashboard-recent-table tr');
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(q) ? '' : 'none';
-                });
-            }
+            localStorage.setItem(
+                'last_global_search',
+                String(query || '')
+            );
         }
-
         // Efek header transparan + blur dinamis saat konten di-scroll
         function handleHeaderScroll() {
             const scrollArea = document.getElementById('main-scroll-area');
@@ -2148,17 +2219,53 @@
         }
 
         function calculateFormDuration() {
-            const jm = document.getElementById('form-jam-mulai').value;
-            const js = document.getElementById('form-jam-selesai').value;
-            if (jm && js) {
-                const start = new Date(`2000-01-01T${jm}:00`);
-                let end = new Date(`2000-01-01T${js}:00`);
-                if (end < start) end = new Date(`2000-01-02T${js}:00`);
-                const diffHours = (end - start) / (1000 * 60 * 60);
-                document.getElementById('calculated-duration-text').innerText = `${diffHours.toFixed(1).replace('.', ',')} Jam`;
-                return diffHours;
+            const startInput = document.getElementById('form-jam-mulai');
+            const endInput = document.getElementById('form-jam-selesai');
+            const output = document.getElementById('calculated-duration-text');
+        
+            if (!startInput || !endInput || !output) {
+                return 0;
             }
-            return 0;
+        
+            const startValue = startInput.value;
+            const endValue = endInput.value;
+        
+            if (!startValue || !endValue) {
+                output.textContent = '0,0 Jam';
+                return 0;
+            }
+        
+            const [startHour, startMinute] = startValue
+                .split(':')
+                .map(Number);
+        
+            const [endHour, endMinute] = endValue
+                .split(':')
+                .map(Number);
+        
+            if (
+                !Number.isFinite(startHour) ||
+                !Number.isFinite(startMinute) ||
+                !Number.isFinite(endHour) ||
+                !Number.isFinite(endMinute)
+            ) {
+                output.textContent = '0,0 Jam';
+                return 0;
+            }
+        
+            let startTotal = startHour * 60 + startMinute;
+            let endTotal = endHour * 60 + endMinute;
+        
+            if (endTotal < startTotal) {
+                endTotal += 24 * 60;
+            }
+        
+            const duration = (endTotal - startTotal) / 60;
+        
+            output.textContent =
+                `${duration.toFixed(1).replace('.', ',')} Jam`;
+        
+            return duration;
         }
 
         function checkDailySubmissionLock() {
@@ -2978,39 +3085,72 @@
         }
         
         // 1. FUNGSI UNTUK MEMETAKAN DATA ADJUST DARI DATABASE GOOGLE SHEETS
-        async function fetchServerAdjustments() {
+       async function fetchServerAdjustments() {
             try {
-                // Panggil endpoint Apps Script / Backend Anda
-                const response = await callServer('getAdjustmentsData'); 
-                
-                if (response && response.success && response.data) {
-                    adjustmentsMap = {}; // Reset map
-                    
-                    // Format respons database sheet disesuaikan ke struktur internal
-                    // Asumsi response.data berisi array item adjustment dari sheet
-                    response.data.forEach(item => {
-                        const npkKey = (item.npk || '').toString().trim();
-                        const reqId = item.id || item.request_id;
+                const response = await callServer('getAdjustmentsData');
         
-                        if (!adjustmentsMap[npkKey]) {
-                            adjustmentsMap[npkKey] = { items: {} };
-                        }
-        
-                        if (reqId) {
-                            const durasi = Number(item.durasiHours || item.durasi) || 0;
-                            adjustmentsMap[npkKey].items[reqId] = {
-                                jamMulai: item.jamMulai || item.jam_mulai,
-                                jamSelesai: item.jamSelesai || item.jam_selesai,
-                                durasiHours: durasi
-                            };
-                        }
-                    });
+                if (
+                    !response ||
+                    !response.success ||
+                    !response.data
+                ) {
+                    adjustmentsMap = {};
+                    return;
                 }
-            } catch (e) {
-                console.warn("Gagal menarik data adjustment dari server:", e);
+        
+                const rawData = Array.isArray(response.data)
+                    ? response.data
+                    : Object.values(response.data);
+        
+                adjustmentsMap = {};
+        
+                rawData.forEach(item => {
+                    if (!item || typeof item !== 'object') return;
+        
+                    const npkKey = String(
+                        item.npk ?? item.NPK ?? ''
+                    ).trim();
+        
+                    if (!npkKey) return;
+        
+                    const requestId = String(
+                        item.id ??
+                        item.request_id ??
+                        item.requestId ??
+                        ''
+                    ).trim();
+        
+                    if (!adjustmentsMap[npkKey]) {
+                        adjustmentsMap[npkKey] = {
+                            items: {}
+                        };
+                    }
+        
+                    if (!requestId) return;
+        
+                    const duration = Number(
+                        item.durasiHours ??
+                        item.durasi_hours ??
+                        item.durasi ??
+                        item.duration ??
+                        0
+                    ) || 0;
+        
+                    adjustmentsMap[npkKey].items[requestId] = {
+                        id: requestId,
+                        tanggal: item.tanggal ?? item.date ?? '',
+                        jamMulai: item.jamMulai ?? item.jam_mulai ?? '',
+                        jamSelesai: item.jamSelesai ?? item.jam_selesai ?? '',
+                        durasiHours: duration
+                    };
+                });
+            } catch (error) {
+                console.error('Gagal mengambil data adjustment:', error);
+                adjustmentsMap = {};
             } finally {
-                // Setelah data diambil, wajib panggil renderReportsView()
-                renderReportsView();
+                if (typeof renderReportsView === 'function') {
+                    renderReportsView();
+                }
             }
         }
         
@@ -3120,8 +3260,8 @@
                     employeeMap[npkKey].asliL2 += Math.max(0, durAsli - 1);
         
                     let durAdj = durAsli;
-                    if (adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[r.id]) {
-                        durAdj = Number(adjustmentsMap[npkKey].items[r.id].durasiHours) || 0;
+                    if (adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && getAdjustmentForRequest(r)) {
+                        durAdj = Number(getAdjustmentForRequest(r).durasiHours) || 0;
                     }
                     employeeMap[npkKey].adjL1 += Math.min(durAdj, 1);
                     employeeMap[npkKey].adjL2 += Math.max(0, durAdj - 1);
@@ -3193,8 +3333,8 @@
                     const npkKey = (r.npk || '').toString().trim();
                     let dur = Number(r.durasiHours) || 0;
         
-                    if (reportModeLog === 'adjust' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && adjustmentsMap[npkKey].items[r.id]) {
-                        dur = Number(adjustmentsMap[npkKey].items[r.id].durasiHours) || 0;
+                    if (reportModeLog === 'adjust' && adjustmentsMap[npkKey] && adjustmentsMap[npkKey].items && getAdjustmentForRequest(r)) {
+                        dur = Number(getAdjustmentForRequest(r).durasiHours) || 0;
                     }
         
                     const l1 = Math.min(dur, 1);
@@ -3539,6 +3679,26 @@
             });
         }
 
+        function getAdjustmentForRequest(request) {
+            if (!request) return null;
+        
+            const npkKey = String(request.npk ?? '').trim();
+            const requestId = String(request.id ?? '').trim();
+        
+            if (!npkKey || !requestId) {
+                return null;
+            }
+        
+            const employeeAdjustment = adjustmentsMap?.[npkKey];
+        
+            if (!employeeAdjustment?.items) {
+                return null;
+            }
+        
+            return employeeAdjustment.items[requestId] || null;
+        }
+                
+
         function closeCustomConfirm(result) {
             const modal = document.getElementById('custom-confirm-modal');
             const box = document.getElementById('custom-confirm-box');
@@ -3794,11 +3954,34 @@
         }
         
         function saveAnalogClock() {
-            if (currentClockTargetInput) {
-                currentClockTargetInput.value = `${selectedHourVal}:${selectedMinuteVal}`;
-                // Trigger event change jika diperlukan oleh sistem lain
-                currentClockTargetInput.dispatchEvent(new Event('change'));
+            if (!currentClockTargetInput) {
+                closeAnalogClock();
+                return;
             }
+        
+            const selectedTime =
+                `${selectedHourValue}:${selectedMinuteValue}`;
+        
+            currentClockTargetInput.value = selectedTime;
+        
+            currentClockTargetInput.dispatchEvent(
+                new Event('change', { bubbles: true })
+            );
+        
+            if (
+                currentClockTargetInput.id === 'form-jam-mulai' ||
+                currentClockTargetInput.id === 'form-jam-selesai'
+            ) {
+                calculateFormDuration();
+            }
+        
+            if (
+                currentClockTargetInput.id.startsWith('adj-start-') ||
+                currentClockTargetInput.id.startsWith('adj-end-')
+            ) {
+                calculateLiveAdjustment();
+            }
+        
             closeAnalogClock();
         }
         
@@ -3986,35 +4169,36 @@
         });
                 
         document.addEventListener('DOMContentLoaded', () => {
-            flatpickr("input[type='time']", {
-                enableTime: true,
-                noCalendar: true,
-                dateFormat: "H:i",
-                time_24hr: true,
-                allowInput: true
-            });
-        });
+            initRealtimeFilterDates();
+            populateDashboardYearFilter();
+            loadDashboardActivity();
         
-        document.addEventListener('DOMContentLoaded', () => {
-            // Sesuaikan ID dengan yang ada di HTML-mu: 'global-search-input'
-            const searchInput = document.getElementById('global-search-input');
-            
-            if (searchInput) {
-                // 1. Ambil memori pencarian terakhir dari localStorage
-                const savedSearch = localStorage.getItem('last_global_search');
-                if (savedSearch) {
-                    searchInput.value = savedSearch;
-                    handleGlobalSearch(savedSearch); // Panggil fungsi utama yang sudah kamu buat
-                }
-                
-                // 2. Setiap kali user mengetik, panggil fungsi handleGlobalSearch
-                searchInput.addEventListener('input', function(e) {
-                    const value = e.target.value;
-                    handleGlobalSearch(value); // Fungsi ini sudah otomatis menyimpan ke localStorage di dalamnya
+            const savedSearch =
+                localStorage.getItem('last_global_search');
+        
+            const searchInput =
+                document.getElementById('global-search-input');
+        
+            if (searchInput && savedSearch) {
+                searchInput.value = savedSearch;
+                handleGlobalSearch(savedSearch);
+            }
+        
+            const timeInputs =
+                document.querySelectorAll('input[type="time"]');
+        
+            if (typeof flatpickr === 'function') {
+                flatpickr(timeInputs, {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: 'H:i',
+                    time_24hr: true,
+                    allowInput: true
                 });
             }
         });
-
+        
+        
         window.addEventListener('scroll', function() {
             const header = document.getElementById('main-header');
             if (!header) return;
