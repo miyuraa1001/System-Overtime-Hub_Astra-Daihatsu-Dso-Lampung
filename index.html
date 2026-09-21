@@ -1661,93 +1661,63 @@
             }).join('') || `<tr><td colspan="8" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur pribadi Anda.</td></tr>`;
         }
         
-        // ==========================================
-        // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
-        // ==========================================
-        function renderRecentActivities() {
-            // Sesuaikan ID elemen tbody di tabel Aktivitas Terkini Anda jika berbeda
-            const tbody = document.getElementById('table-aktivitas-terkini-body') || document.querySelector('#aktivitas-terkini-table tbody');
-            
-            // Jika elemen tabelnya tidak ditemukan di halaman aktif, abaikan saja agar tidak error
-            if (!tbody && !document.getElementById('table-aktivitas-terkini-body')) {
-                // Coba cari alternatif selector umum jika id-nya berbeda
-                const generalTable = document.querySelector('table');
-                if (!generalTable) return;
-            }
-        
-            const targetTbody = document.getElementById('table-aktivitas-terkini-body');
-            if (!targetTbody) return;
-        
-            // 1. Urutkan data berdasarkan timestamp atau id terbesar (data terbaru di atas)
-            const sortedData = [...overtimeRequests].sort((a, b) => {
-                const timeA = Number(a.timestamp) || 0;
-                const timeB = Number(b.timestamp) || 0;
-                if (timeB !== timeA) return timeB - timeA;
-                return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
-            });
-        
-            // 2. Ambil 5 atau 10 data teratas untuk aktivitas terkini
-            const recentList = sortedData.slice(0, 10);
-        
-            // 3. Render ke dalam baris tabel HTML
-            targetTbody.innerHTML = recentList.map((r, idx) => `
-                <tr class="hover:bg-slate-50 transition-all">
-                    <td class="py-3 px-4 font-bold text-slate-800">
-                        ${r.nama} 
-                        <div class="text-xs text-slate-400 font-mono font-normal">(${r.npk})</div>
-                    </td>
-                    <td class="py-3 px-4 text-slate-600">${r.cabang}</td>
-                    <td class="py-3 px-4 text-slate-600">${r.tanggal}</td>
-                    <td class="py-3 px-4 text-slate-600">${r.jamMulai} - ${r.jamSelesai} <br><span class="text-xs text-slate-400">(${r.durasiHours}j)</span></td>
-                    <td class="py-3 px-4 text-slate-600">${r.pekerjaan}</td>
-                    <td class="py-3 px-4 text-center">${typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : r.status}</td>
-                </tr>
-            `).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada aktivitas lembur tercatat.</td></tr>`;
-        }
 
         // ==========================================
         // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
         // ==========================================
         function renderRecentActivities() {
-            const targetTbody = document.getElementById('table-aktivitas-terkini-body') || document.querySelector('#aktivitas-terkini-table tbody');
+            // 1. Tangkap tbody tempat merender (bisa via id 'table-aktivitas-terkini-body' atau selector tabel)
+            const targetTbody = document.getElementById('table-aktivitas-terkini-body') || 
+                                document.querySelector('#dashboard-recent-table') || 
+                                document.querySelector('#aktivitas-terkini-table tbody');
+        
             if (!targetTbody) return;
         
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
         
-            // 1. Tentukan Role Pengguna
+            // 2. Cek Role Pengguna Aktif
             let userRole = 'user';
             if (typeof currentUserRole !== 'undefined' && currentUserRole) {
                 userRole = currentUserRole.toString().trim().toLowerCase();
-            } else if (typeof currentUser !== 'undefined' && currentUser && currentUser.role) {
+            } else if (currentUser && currentUser.role) {
                 userRole = currentUser.role.toString().trim().toLowerCase();
             }
+            const isAdmin = userRole === 'admin';
         
-            // 2. Filter data (Jika karyawan biasa, hanya ambil data miliknya)
-            const userFilteredData = listData.filter(r => {
-                if (userRole === 'admin') return true;
-                const myNpk = currentUser ? (currentUser.npk || '').toString().trim() : '';
+            // 3. Filter Hak Akses: Admin = Semua Data, User Biasa = Hanya NPK Milik Sendiri
+            const myNpk = currentUser ? (currentUser.npk || '').toString().trim() : '';
+            const filteredData = listData.filter(r => {
+                if (isAdmin) return true;
                 return myNpk !== '' && (r.npk || '').toString().trim() === myNpk;
             });
         
-            // 3. Urutkan data berdasarkan timestamp atau pembersihan string ID (Terbaru di atas)
-            const sortedData = [...userFilteredData].sort((a, b) => {
+            // 4. Urutkan dari yang Terbarunya Dulu (timestamp terbesar / ID angka tertinggi)
+            const sortedData = [...filteredData].sort((a, b) => {
                 const timeA = Number(a.timestamp) || 0;
                 const timeB = Number(b.timestamp) || 0;
                 if (timeB !== timeA) return timeB - timeA;
         
-                // Ekstrak angka dari ID (misal "REQ-1726000000" -> 1726000000)
+                // Ekstrak angka dari ID string (contoh: "REQ-1726000000" -> 1726000000)
                 const idA = Number((a.id || '').toString().replace(/\D/g, '')) || 0;
                 const idB = Number((b.id || '').toString().replace(/\D/g, '')) || 0;
                 return idB - idA;
             });
         
-            // 4. Ambil 5 atau 10 data teratas
+            // 5. Ambil 5 s/d 10 aktivitas teratas
             const recentList = sortedData.slice(0, 10);
         
-            // 5. Render ke dalam baris tabel HTML
-            targetTbody.innerHTML = recentList.map((r) => {
+            // 6. Render ke tabel HTML
+            targetTbody.innerHTML = recentList.map(r => {
                 const durasiNum = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
-                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : (r.status || 'Pending');
+                const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                        (r.status || '').toLowerCase() === 'diterima' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        (r.status || '').toLowerCase() === 'ditolak' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        'bg-amber-50 text-amber-700 border border-amber-200'
+                    }">
+                        ${r.status || 'Pending'}
+                    </span>
+                `;
         
                 return `
                     <tr class="hover:bg-slate-50 transition-all">
@@ -1758,7 +1728,7 @@
                         <td class="py-3 px-4 text-slate-600">${r.cabang || '-'}</td>
                         <td class="py-3 px-4 text-slate-600">${r.tanggal || '-'}</td>
                         <td class="py-3 px-4 text-slate-600 font-mono">
-                            ${r.jamMulai || '-'} - ${r.jamSelesai || '-'}
+                            ${r.jamMulai || '-'} - ${r.jamSelesai || '-'} 
                             <br><span class="text-xs text-slate-400 font-sans">(${durasiNum}j)</span>
                         </td>
                         <td class="py-3 px-4 text-slate-600 max-w-[200px] truncate" title="${r.pekerjaan || ''}">${r.pekerjaan || '-'}</td>
