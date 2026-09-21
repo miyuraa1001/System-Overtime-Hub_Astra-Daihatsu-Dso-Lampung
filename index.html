@@ -1666,7 +1666,6 @@
         // RENDER TABEL AKTIVITAS TERKINI (REAL-TIME)
         // ==========================================
         function renderRecentActivities() {
-            // 1. Tangkap tbody tempat merender (bisa via id 'table-aktivitas-terkini-body' atau selector tabel)
             const targetTbody = document.getElementById('table-aktivitas-terkini-body') || 
                                 document.querySelector('#dashboard-recent-table') || 
                                 document.querySelector('#aktivitas-terkini-table tbody');
@@ -1675,7 +1674,7 @@
         
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
         
-            // 2. Cek Role Pengguna Aktif
+            // 1. Cek Role Pengguna
             let userRole = 'user';
             if (typeof currentUserRole !== 'undefined' && currentUserRole) {
                 userRole = currentUserRole.toString().trim().toLowerCase();
@@ -1684,29 +1683,40 @@
             }
             const isAdmin = userRole === 'admin';
         
-            // 3. Filter Hak Akses: Admin = Semua Data, User Biasa = Hanya NPK Milik Sendiri
+            // 2. Filter Hak Akses (Admin = Semua, User = Hanya Milik Sendiri)
             const myNpk = currentUser ? (currentUser.npk || '').toString().trim() : '';
             const filteredData = listData.filter(r => {
                 if (isAdmin) return true;
                 return myNpk !== '' && (r.npk || '').toString().trim() === myNpk;
             });
         
-            // 4. Urutkan dari yang Terbarunya Dulu (timestamp terbesar / ID angka tertinggi)
+            // 3. PENGURUTAN BENAR: Tanggal Terbaru di Atas (Descending)
             const sortedData = [...filteredData].sort((a, b) => {
+                // Parse tanggal ke format objek Date untuk pembandingan yang akurat
+                const dateA = a.tanggal ? new Date(a.tanggal.toString().replace(/\//g, '-')).getTime() : 0;
+                const dateB = b.tanggal ? new Date(b.tanggal.toString().replace(/\//g, '-')).getTime() : 0;
+        
+                // Jika tanggal beda, taruh tanggal yang paling baru di paling atas
+                if (dateB !== dateA) {
+                    return dateB - dateA;
+                }
+        
+                // Jika tanggal sama, urutkan dari Timestamp / ID angka terbesar
                 const timeA = Number(a.timestamp) || 0;
                 const timeB = Number(b.timestamp) || 0;
-                if (timeB !== timeA) return timeB - timeA;
+                if (timeB !== timeA) {
+                    return timeB - timeA;
+                }
         
-                // Ekstrak angka dari ID string (contoh: "REQ-1726000000" -> 1726000000)
                 const idA = Number((a.id || '').toString().replace(/\D/g, '')) || 0;
                 const idB = Number((b.id || '').toString().replace(/\D/g, '')) || 0;
                 return idB - idA;
             });
         
-            // 5. Ambil 5 s/d 10 aktivitas teratas
+            // 4. Ambil 10 data teratas
             const recentList = sortedData.slice(0, 10);
         
-            // 6. Render ke tabel HTML
+            // 5. Render ke tabel HTML
             targetTbody.innerHTML = recentList.map(r => {
                 const durasiNum = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
                 const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
@@ -1737,7 +1747,6 @@
                 `;
             }).join('') || `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada aktivitas lembur tercatat.</td></tr>`;
         }
-
         // ==========================================
         // 4. RENDER DASHBOARD VIEW
         // ==========================================
