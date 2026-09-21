@@ -2343,6 +2343,16 @@
                 return;
             }
         
+            // PERBAIKAN UTAMA: Cari Nama Karyawan Asli berdasarkan NPK yang diisi di input form-npk
+            let targetNama = currentUser ? (currentUser.nama || currentUser.namaKaryawan || "") : "";
+        
+            if (Array.isArray(karyawanList) && karyawanList.length > 0) {
+                const foundEmp = karyawanList.find(k => k.npk && String(k.npk).trim() === npkVal);
+                if (foundEmp) {
+                    targetNama = foundEmp.nama || foundEmp.namaKaryawan || targetNama;
+                }
+            }
+        
             // LANGSUNG LOCK TOMBOL SEBELUM PROSES ASYNC / fetchFromBackend
             submitBtn.disabled = true;
             submitBtn.style.pointerEvents = 'none'; // Mencegah klik fisik tambahan
@@ -2351,7 +2361,7 @@
             const payload = {
                 cabang: selectedCabang.value,
                 npk: npkVal,
-                nama: currentUser ? (currentUser.nama || "") : "",
+                nama: targetNama, // Nama otomatis terisi sesuai pemilik NPK
                 tanggal: tanggalVal,
                 jamMulai: jamMulaiVal,
                 jamSelesai: jamSelesaiVal,
@@ -2397,9 +2407,18 @@
                 submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> <span>Kirim Pengajuan Lembur</span>';
             }
         }
-
+        
         async function apiSubmitOvertime(payload) {
-            return await fetchFromBackend('submitOvertimeRequest', payload);
+            if (!payload || typeof payload !== 'object') {
+                return { success: false, message: "Payload pengajuan lembur tidak valid." };
+            }
+        
+            try {
+                return await fetchFromBackend('submitOvertimeRequest', payload);
+            } catch (error) {
+                console.error("Error pada apiSubmitOvertime:", error);
+                return { success: false, message: "Gagal terhubung ke API: " + error.message };
+            }
         }
         
         function renderApprovalsView() {
@@ -3704,6 +3723,30 @@
                 updateProfileHeader();
                 showToast('Profil berhasil diperbarui.', 'success');
             }
+        }
+
+        function updateProfileHeader() {
+            if (!currentUser) return;
+        
+            // 1. Update Header Atas
+            const nameEl = document.getElementById('header-user-name');
+            const roleEl = document.getElementById('header-user-role');
+            const avatarEl = document.getElementById('user-avatar');
+        
+            const namaUser = currentUser.nama || currentUser.namaKaryawan || currentUser.username || 'Pengguna';
+            const npkUser = currentUser.npk || '-';
+            const roleUser = currentUserRole === 'admin' ? 'Admin / HRD' : 'Karyawan';
+        
+            if (nameEl) nameEl.innerText = namaUser;
+            if (roleEl) roleEl.innerText = `${roleUser} - ${npkUser}`;
+            if (avatarEl) avatarEl.innerText = namaUser.substring(0, 2).toUpperCase();
+        
+            // 2. PERBAIKAN: Isi Form Pengaturan Profil (Sesuai ID HTML: setting-nama & setting-npk)
+            const settingNamaEl = document.getElementById('setting-nama');
+            const settingNpkEl = document.getElementById('setting-npk');
+        
+            if (settingNamaEl) settingNamaEl.value = namaUser;
+            if (settingNpkEl) settingNpkEl.value = npkUser;
         }
 
         // 1. Toggle Popover & Tandai Dibaca saat dibuka
