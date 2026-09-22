@@ -2460,66 +2460,109 @@
             `).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada pengajuan yang membutuhkan keputusan.</td></tr>`;
         }
 
+        // ==========================================
+        // FUNGSI PERSETUJUAN INDIVIDUAL (APPROVE / REJECT)
+        // ==========================================
         async function handleApproval(id, status) {
-            const targetReq = overtimeRequests.find(r => r.id === id);
+            if (!id) return;
+        
+            // Normalisasi ID ke bentuk string
+            const targetIdStr = String(id).trim();
             const isAccepted = (status === 'Diterima' || status === 'Approved');
             const newStatus = isAccepted ? 'Diterima' : 'Ditolak';
-
+        
+            // 1. Cari data di lokal dengan perbandingan aman (String)
+            const targetReq = overtimeRequests.find(r => String(r.id || r.ID || '').trim() === targetIdStr);
+        
+            // Simpan status lama untuk rollback jika backend gagal
+            const oldStatus = targetReq ? targetReq.status : 'Pending';
+        
             if (targetReq) {
-                targetReq.status = newStatus; // Update lokal sementara
-                renderAllViews();
+                targetReq.status = newStatus; // Update lokal sementara (Optimistic UI)
+                if (typeof renderAllViews === 'function') renderAllViews();
                 showToast(isAccepted ? 'Pengajuan lembur diterima!' : 'Pengajuan lembur ditolak!', isAccepted ? 'success' : 'error');
             }
-
-            // Kirim ke backend Google Apps Script dan tunggu hasilnya
-            const res = await fetchFromBackend('updateOvertimeStatus', { id: id, status: newStatus });
-            
-            if (res && res.success) {
-                loadAllDataServer(); // Muat ulang data terbaru dari spreadsheet asli
-            } else {
-                showToast("Gagal memperbarui status di database.", "error");
-                loadAllDataServer(); // Rollback jika gagal
+        
+            try {
+                // 2. Kirim ke backend Google Apps Script
+                const res = await fetchFromBackend('updateOvertimeStatus', { id: targetIdStr, status: newStatus });
+                
+                if (res && res.success) {
+                    // Refresh data dari server agar sinkron penuh
+                    await loadAllDataServer(); 
+                } else {
+                    // Rollback jika server merespon gagal
+                    if (targetReq) targetReq.status = oldStatus;
+                    if (typeof renderAllViews === 'function') renderAllViews();
+                    showToast("Gagal memperbarui status di database.", "error");
+                    await loadAllDataServer();
+                }
+            } catch (err) {
+                console.error("Error handleApproval:", err);
+                if (targetReq) targetReq.status = oldStatus;
+                if (typeof renderAllViews === 'function') renderAllViews();
+                showToast("Error sistem saat memperbarui status.", "error");
             }
         }
 
+        // ==========================================
+        // FUNGSI TERIMA SEMUA (APPROVE ALL PENDING)
+        // ==========================================
         async function handleApproveAll() {
-            const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
+            const rawList = Array.isArray(overtimeRequests) ? overtimeRequests : [];
+            
+            // 1. Saring data yang berstatus Pending
+            const pendingList = rawList.filter(r => {
+                const s = String(r.status || r.Status || '').toLowerCase().trim();
+                return s === 'pending';
+            });
+        
             if (pendingList.length === 0) {
                 showToast("Tidak ada antrean pengajuan yang berstatus Pending.", "info");
                 return;
             }
-
+        
             const total = pendingList.length;
-
+        
+            // 2. Konfirmasi tindakan
             const confirmed = await showCustomConfirm({
                 title: "Terima Semua Pengajuan?",
                 message: `Apakah Anda yakin ingin <b>Menerima Seluruh (${total})</b> permohonan lembur yang berstatus Pending?`,
                 confirmText: "Ya, Terima Semua",
                 type: "success"
             });
-
+        
             if (!confirmed) return;
-
-            const pendingIds = pendingList.map(r => r.id);
-
-            // Update tampilan lokal sementara (Sudah diperbaiki jadi 'pending' huruf kecil)
+        
+            // Ambil seluruh ID (konversi aman ke String)
+            const pendingIds = pendingList.map(r => String(r.id || r.ID || '').trim());
+        
+            // 3. Update tampilan lokal sementara
             overtimeRequests.forEach(r => {
-                if ((r.status || '').toString().toLowerCase() === 'pending') {
+                const s = String(r.status || r.Status || '').toLowerCase().trim();
+                if (s === 'pending') {
                     r.status = 'Diterima';
                 }
             });
-            renderAllViews();
+        
+            if (typeof renderAllViews === 'function') renderAllViews();
             showToast(`Memproses ${total} pengajuan lembur...`, 'info');
-
-            // Kirim daftar ID ke backend menggunakan fetchFromBackend
-            const res = await fetchFromBackend('approveAllPendingOvertime', { ids: pendingIds });
-
-            if (res && res.success) {
-                showToast(`${total} pengajuan lembur berhasil Diterima!`, 'success');
-                loadAllDataServer();
-            } else {
-                showToast("Gagal memproses Terima Semua: " + (res ? res.message : "Kesalahan server"), "error");
-                loadAllDataServer(); // Rollback jika gagal
+        
+            try {
+                // 4. Kirim daftar ID ke backend
+                const res = await fetchFromBackend('approveAllPendingOvertime', { ids: pendingIds });
+        
+                if (res && res.success) {
+                    showToast(`${total} pengajuan lembur berhasil Diterima!`, 'success');
+                    await loadAllDataServer();
+                } else {
+                    showToast("Gagal memproses Terima Semua: " + (res ? res.message : "Kesalahan server"), "error");
+                    await loadAllDataServer(); // Rollback dari server
+                }
+            } catch (err) {
+                console.error("Error handleApproveAll:", err);
+                showToast("Gagal terhubung ke server saat memproses Terima Semua.", "error");
+                await loadAllDataServer();
             }
         }
 
