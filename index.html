@@ -1254,6 +1254,27 @@
         });
 
         // ==========================================
+        // HELPER OTOMATIS: DAPATKAN NAMA SESUAI NPK
+        // ==========================================
+        function getRealNameByNpk(npkVal, fallbackNama = '') {
+            const cleanNpk = String(npkVal || '').trim();
+            if (!cleanNpk) return fallbackNama || 'Karyawan';
+        
+            // Cari di master data karyawanList
+            if (Array.isArray(karyawanList) && karyawanList.length > 0) {
+                const found = karyawanList.find(k => String(k.npk || k.NPK || '').trim() === cleanNpk);
+                if (found) {
+                    const realName = found.nama || found.Nama || found.namaKaryawan;
+                    if (realName && realName.trim() !== '') return realName;
+                }
+            }
+        
+            // Fallback jika tidak ditemukan di master data
+            if (fallbackNama && fallbackNama !== 'undefined') return fallbackNama;
+            return 'Karyawan';
+        }
+
+        // ==========================================
         // FUNGSI UTAMA LOAD DATA DARI SERVER
         // ==========================================
         async function loadAllDataServer() {
@@ -1679,7 +1700,7 @@
         
 
         // ==========================================
-        // RENDER TABEL AKTIVITAS TERKINI (OPTIMIZED FOR YYYY-MM-DD)
+        // RENDER TABEL AKTIVITAS TERKINI (OPTIMIZED FOR YYYY-MM-DD & NPK SYNC)
         // ==========================================
         function renderRecentActivities() {
             const targetTbody = document.getElementById('table-aktivitas-terkini-body') || 
@@ -1734,8 +1755,20 @@
         
             // 5. Render ke HTML
             targetTbody.innerHTML = recentList.map(r => {
-                const vNama = r.nama || r.Nama || r.namaKaryawan || r.username || (currentUser ? currentUser.nama : '') || 'Karyawan';
-                const vNpk = r.npk || r.NPK || myNpk || '-';
+                const vNpk = String(r.npk || r.NPK || myNpk || '-').trim();
+        
+                // SINKRONISASI NAMA BERDASARKAN NPK KARYAWAN HASIL LOOKUP
+                let vNama = r.nama || r.Nama || r.namaKaryawan || r.username || '';
+                if (Array.isArray(karyawanList) && karyawanList.length > 0 && vNpk !== '-') {
+                    const foundEmp = karyawanList.find(k => String(k.npk || k.NPK || '').trim() === vNpk);
+                    if (foundEmp) {
+                        vNama = foundEmp.nama || foundEmp.Nama || foundEmp.namaKaryawan || vNama;
+                    }
+                }
+                if (!vNama || vNama === 'undefined') {
+                    vNama = (currentUser ? currentUser.nama : '') || 'Karyawan';
+                }
+        
                 const vCabang = r.cabang || r.Cabang || '-';
                 const vTanggal = r.tanggal || r.Tanggal || '-';
                 const vJamMulai = r.jamMulai || r.Jam_Mulai || r.jam_mulai || '-';
@@ -2332,10 +2365,15 @@
                 pekerjaanVal = customInput && customInput.value.trim() ? customInput.value.trim() : "Pekerjaan Lainnya";
             }
         
-            const tanggalVal = document.getElementById('form-tanggal').value;
-            const jamMulaiVal = document.getElementById('form-jam-mulai').value;
-            const jamSelesaiVal = document.getElementById('form-jam-selesai').value;
-            const npkVal = document.getElementById('form-npk').value.trim();
+            const elTanggal = document.getElementById('form-tanggal');
+            const elJamMulai = document.getElementById('form-jam-mulai');
+            const elJamSelesai = document.getElementById('form-jam-selesai');
+            const elNpk = document.getElementById('form-npk');
+        
+            const tanggalVal = elTanggal ? elTanggal.value : '';
+            const jamMulaiVal = elJamMulai ? elJamMulai.value : '';
+            const jamSelesaiVal = elJamSelesai ? elJamSelesai.value : '';
+            const npkVal = elNpk ? elNpk.value.trim() : '';
             const durasiVal = typeof calculateFormDuration === 'function' ? calculateFormDuration() : 0;
         
             if (!tanggalVal || !jamMulaiVal || !jamSelesaiVal || !npkVal) {
@@ -2343,14 +2381,23 @@
                 return;
             }
         
-            // PERBAIKAN UTAMA: Cari Nama Karyawan Asli berdasarkan NPK yang diisi di input form-npk
-            let targetNama = currentUser ? (currentUser.nama || currentUser.namaKaryawan || "") : "";
+            // PERBAIKAN UTAMA: Safe Lookup Nama Karyawan Asli (Mendukung Huruf Kecil/Kapital)
+            let targetNama = currentUser ? (currentUser.nama || currentUser.Nama || currentUser.namaKaryawan || "") : "";
         
             if (Array.isArray(karyawanList) && karyawanList.length > 0) {
-                const foundEmp = karyawanList.find(k => k.npk && String(k.npk).trim() === npkVal);
+                const foundEmp = karyawanList.find(k => {
+                    const itemNpk = String(k.npk || k.NPK || '').trim();
+                    return itemNpk !== '' && itemNpk === npkVal;
+                });
+        
                 if (foundEmp) {
-                    targetNama = foundEmp.nama || foundEmp.namaKaryawan || targetNama;
+                    targetNama = foundEmp.nama || foundEmp.Nama || foundEmp.namaKaryawan || targetNama;
                 }
+            }
+        
+            // Fallback jika nama tetap kosong
+            if (!targetNama || targetNama === 'undefined') {
+                targetNama = 'Karyawan';
             }
         
             // LANGSUNG LOCK TOMBOL SEBELUM PROSES ASYNC / fetchFromBackend
@@ -2370,7 +2417,7 @@
             };
         
             try {
-                const res = await fetchFromBackend('submitOvertimeRequest', payload);
+                const res = await apiSubmitOvertime(payload);
         
                 if (res && res.success) {
                     showToast(res.message || "Pengajuan lembur berhasil dikirim!", "success");
@@ -2378,18 +2425,18 @@
                     const formEl = document.getElementById('overtime-form');
                     if (formEl) formEl.reset();
                     
-                    document.getElementById('form-jam-mulai').value = "17:00";
-                    document.getElementById('form-jam-selesai').value = "20:00";
+                    if (elJamMulai) elJamMulai.value = "17:00";
+                    if (elJamSelesai) elJamSelesai.value = "20:00";
                     
-                    if (currentUser && currentUser.role !== 'admin') {
-                        document.getElementById('form-npk').value = currentUser.npk;
-                    } else {
-                        document.getElementById('form-npk').value = '';
+                    if (currentUser && currentUser.role !== 'admin' && elNpk) {
+                        elNpk.value = currentUser.npk || '';
+                    } else if (elNpk) {
+                        elNpk.value = '';
                     }
                     
                     if (typeof calculateFormDuration === 'function') calculateFormDuration();
                     
-                    // Reload data server agar pengajuan baru (Pending) langsung masuk ke History
+                    // Reload data server agar pengajuan baru (Pending) langsung masuk ke History & Dashboard
                     await loadAllDataServer();
                     
                     if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
@@ -2422,42 +2469,57 @@
         }
         
         function renderApprovalsView() {
-            const tbody = document.getElementById('approvals-table-body');
-            const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
-
-            const btnApproveAll = document.getElementById('btn-approve-all');
-            const countSpan = document.getElementById('btn-approve-all-count');
-            if (countSpan) countSpan.innerText = pendingList.length;
-
-            if (btnApproveAll) {
-                if (pendingList.length === 0) {
-                    btnApproveAll.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-                } else {
-                    btnApproveAll.classList.remove('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-                }
-            }
-
-            tbody.innerHTML = pendingList.map(r => `
-                <tr class="hover:bg-slate-50/80 transition-all">
-                    <td class="py-3.5 px-5 font-semibold">${r.nama} <span class="text-slate-400 font-normal">(${r.npk})</span></td>
-                    <td class="py-3.5 px-5">${r.cabang}</td>
-                    <td class="py-3.5 px-5">${r.tanggal}</td>
-                    <td class="py-3.5 px-5 font-mono">${r.jamMulai} - ${r.jamSelesai} (${Number(r.durasiHours || 0).toFixed(1).replace('.', ',')}j)</td>
-                    <td class="py-3.5 px-5">${r.pekerjaan}</td>
-                    <td class="py-3.5 px-5 text-center">
-                        <div class="flex items-center justify-center gap-2">
-                            <button onclick="handleApproval('${r.id}', 'Diterima')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5" title="Terima Pengajuan">
-                                <i class="fa-solid fa-check"></i>
-                                <span>Terima</span>
-                            </button>
-                            <button onclick="handleApproval('${r.id}', 'Ditolak')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5" title="Tolak Pengajuan">
-                                <i class="fa-solid fa-xmark"></i>
-                                <span>Tolak</span>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada pengajuan yang membutuhkan keputusan.</td></tr>`;
+            const tbody = document.getElementById('table-approvals-body') || 
+                          document.getElementById('approvals-table-body') ||
+                          document.querySelector('#page-approvals table tbody');
+                          
+            if (!tbody) return;
+        
+            const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
+        
+            const pendingRequests = listData.filter(r => {
+                const s = String(r.status || r.Status || '').toLowerCase();
+                return s === 'pending';
+            });
+        
+            tbody.innerHTML = pendingRequests.map(r => {
+                const npkKey = String(r.npk || r.NPK || '').trim();
+                // SINKRONISASI NAMA BERDASARKAN NPK HASIL LOOKUP
+                const realName = getRealNameByNpk(npkKey, r.nama || r.Nama);
+        
+                const vCabang = r.cabang || r.Cabang || '-';
+                const vTanggal = r.tanggal || r.Tanggal || '-';
+                const vJamMulai = r.jamMulai || r.Jam_Mulai || '-';
+                const vJamSelesai = r.jamSelesai || r.Jam_Selesai || '-';
+                const vPekerjaan = r.pekerjaan || r.Pekerjaan || '-';
+                const durasiNum = Number(r.durasiHours || r.durasi || 0).toFixed(1).replace('.', ',');
+        
+                return `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="py-3.5 px-4 font-bold text-slate-800">
+                            ${realName} 
+                            <span class="text-xs text-slate-400 font-mono font-normal">(${npkKey || '-'})</span>
+                        </td>
+                        <td class="py-3.5 px-4 text-slate-600">${vCabang}</td>
+                        <td class="py-3.5 px-4 text-slate-600 font-medium">${vTanggal}</td>
+                        <td class="py-3.5 px-4 text-slate-600 font-mono">
+                            ${vJamMulai} - ${vJamSelesai}
+                            <br><span class="text-xs text-slate-400 font-sans">(${durasiNum}j)</span>
+                        </td>
+                        <td class="py-3.5 px-4 text-slate-600 max-w-[200px] truncate" title="${vPekerjaan}">${vPekerjaan}</td>
+                        <td class="py-3.5 px-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="approveRequest('${r.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1">
+                                    <i class="fa-solid fa-check"></i> Terima
+                                </button>
+                                <button onclick="rejectRequest('${r.id}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1">
+                                    <i class="fa-solid fa-xmark"></i> Tolak
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada permohonan lembur yang membutuhkan verifikasi.</td></tr>`;
         }
 
         // ==========================================
