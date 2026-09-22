@@ -4,7 +4,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, payload } = req.body;
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
+    }
+    const { action, payload } = body || {};
     
     const GAS_URL = process.env.GAS_WEB_APP_URL;
     const API_TOKEN = process.env.GAS_API_TOKEN;
@@ -19,6 +27,7 @@ export default async function handler(req, res) {
     const response = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      redirect: 'follow',
       body: JSON.stringify({
         token: API_TOKEN,
         action: action,

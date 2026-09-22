@@ -1227,8 +1227,21 @@
         let reportModeLog = 'asli';   // 'asli' atau 'adjust'
         let cachedAdjustments = [];   // Cache data adjustment dari server
 
+        let selectedTahun = new Date().getFullYear().toString();
+        let selectedBulan = (new Date().getMonth() + 1).toString();
+
         let lastPendingCount = -1;
         let realtimePollingInterval = null;
+
+        // Helper format tanggal aman dari Google Sheets (ISO string / lokal)
+        function formatDateDisplay(val) {
+            if (!val) return '-';
+            let s = String(val).trim();
+            if (s.includes('T')) {
+                s = s.split('T')[0];
+            }
+            return s;
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. Tangkap parameter URL dengan aman ---
@@ -1243,6 +1256,10 @@
                     userInput.value = decodeURIComponent(urlUser.replace(/\+/g, ' '));
                     passInput.value = urlPass;
                 }
+                // Bersihkan query string dari URL demi keamanan
+                try {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } catch (e) {}
             }
         
             // --- 2. Time picker universal (Cukup 1 Listener Saja) ---
@@ -1449,6 +1466,17 @@
                 // Simpan session pengguna dan role ke LocalStorage
                 localStorage.setItem('overtime_user_session', JSON.stringify(currentUser));
                 localStorage.setItem('overtime_user_role', currentUserRole);
+
+                // Simpan atau bersihkan kredensial 'Ingat Saya'
+                const rememberEl = document.getElementById('login-remember');
+                if (rememberEl && rememberEl.checked) {
+                    localStorage.setItem('overtime_saved_credentials', JSON.stringify({
+                        username: usernameInput,
+                        password: passwordInput
+                    }));
+                } else {
+                    localStorage.removeItem('overtime_saved_credentials');
+                }
         
                 // Terapkan izin role & update header
                 if (typeof applyRolePermissions === 'function') applyRolePermissions();
@@ -1531,24 +1559,6 @@
             }
         }
 
-        function applyRolePermissions() {
-            const adminElements = document.querySelectorAll('.admin-only');
-            const role = (currentUser && currentUser.role) ? currentUser.role.toString().trim().toLowerCase() : 'user';
-            
-            if (role === 'admin') {
-                adminElements.forEach(el => el.classList.remove('hidden'));
-                const navReportsText = document.getElementById('text-nav-reports');
-                if (navReportsText) navReportsText.innerText = 'Reports / Payroll';
-            } else {
-                adminElements.forEach(el => el.classList.add('hidden'));
-                const navReportsText = document.getElementById('text-nav-reports');
-                if (navReportsText) navReportsText.innerText = 'Log Lembur Harian';
-
-                // Pastikan mode akun karyawan otomatis melihat data asli
-                rekapViewMode = 'asli';
-                claimViewMode = 'asli';
-            }
-        }
 
         function applyRolePermissions() {
             const adminElements = document.querySelectorAll('.admin-only');
@@ -1597,12 +1607,10 @@
                 role = (currentUser.role || currentUser.role_name).toString().trim().toLowerCase();
             }
         
-            // 3. Panggil fetchKaryawanList HANYA jika role adalah Admin dan list karyawan belum terisi
-            if (role === 'admin') {
-                const isKaryawanEmpty = !Array.isArray(karyawanList) || karyawanList.length === 0;
-                if (isKaryawanEmpty && typeof fetchKaryawanList === 'function') {
-                    fetchKaryawanList();
-                }
+            // 3. Panggil fetchKaryawanList jika list karyawan belum terisi (agar lookup nama & gaji tersedia untuk semua)
+            const isKaryawanEmpty = !Array.isArray(karyawanList) || karyawanList.length === 0;
+            if (isKaryawanEmpty && typeof fetchKaryawanList === 'function') {
+                fetchKaryawanList();
             }
         }
         
@@ -1940,124 +1948,17 @@
             }
         }
 
-        setInterval(function() {
-            if (document.getElementById('login-screen').classList.contains('hidden')) {
-                loadAllDataServer();
-            }
-        }, 45000);
-
-        // ==========================================
-        // GENERATE DYNAMIC NOTIFICATIONS (INTEGRATED)
-        // ==========================================
         function generateDynamicNotifications() {
-            notifications = [];
-            if (!currentUser) return;
-            
-            // 1. Ambil ID notifikasi yang dibaca dari localStorage
-            let readNotifIds = [];
-            try {
-                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
-                readNotifIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
-            } catch (e) {
-                readNotifIds = [];
-            }
-        
-            const rawList = Array.isArray(overtimeRequests) ? overtimeRequests : [];
-            const isAdmin = String(currentUser.role || '').toLowerCase() === 'admin';
-            
-            if (isAdmin) {
-                // ADMIN: Mengisi daftar notifikasi panel lonceng dari status Pending
-                const pendingList = rawList.filter(r => String(r.status || r.Status || '').toLowerCase().trim() === 'pending');
-                
-                pendingList.forEach(item => {
-                    const itemIdStr = String(item.id || item.ID || '').trim();
-                    const itemNpk = String(item.npk || item.NPK || '').trim();
-                    
-                    // Nama disinkronkan dengan NPK
-                    const realName = typeof getRealNameByNpk === 'function' 
-                        ? getRealNameByNpk(itemNpk, item.nama || item.Nama) 
-                        : (item.nama || item.Nama || 'Karyawan');
-        
-                    notifications.push({
-                        id: itemIdStr,
-                        title: 'Pengajuan Lembur Masuk',
-                        message: `${realName} (${itemNpk || '-'}) mengajukan lembur pada ${item.tanggal || item.Tanggal || '-'}.`,
-                        time: 'Menunggu Persetujuan',
-                        read: readNotifIds.includes(itemIdStr)
-                    });
-                });
-            } else {
-                // KARYAWAN: Mengisi daftar notifikasi panel lonceng dari respon Admin
-                const curNpk = String(currentUser.npk || '').trim();
-                const myResponses = rawList.filter(r => {
-                    const isMyNpk = String(r.npk || r.NPK || '').trim() === curNpk;
-                    const st = String(r.status || r.Status || '').toLowerCase().trim();
-                    return isMyNpk && ['approved', 'rejected', 'diterima', 'ditolak'].includes(st);
-                });
-        
-                myResponses.forEach(item => {
-                    const itemIdStr = String(item.id || item.ID || '').trim();
-                    const stLower = String(item.status || item.Status || '').toLowerCase().trim();
-                    const isApproved = stLower === 'approved' || stLower === 'diterima';
-                    const titleText = isApproved ? 'Lembur Disetujui' : 'Lembur Ditolak';
-                    const statusLabel = isApproved ? 'diterima' : 'ditolak';
-                    const durasiNum = Number(item.durasiHours || item.durasi || 0).toFixed(1).replace('.', ',');
-        
-                    notifications.push({
-                        id: itemIdStr,
-                        title: titleText,
-                        message: `Pengajuan tanggal ${item.tanggal || item.Tanggal || '-'} (${durasiNum} jam) telah di-${statusLabel} oleh Admin.`,
-                        time: isApproved ? 'Diterima' : 'Ditolak',
-                        read: readNotifIds.includes(itemIdStr)
-                    });
-                });
-            }
-        
-            // 2. Update badge angka lonceng di header
-            if (typeof updateNotifBadge === 'function') {
-                updateNotifBadge();
+            if (typeof updateNotificationsUI === 'function') {
+                updateNotificationsUI();
             }
         }
-        
-        // ==========================================
-        // TANDAI NOTIFIKASI DIBACA (SAFE STRING COMPARISON)
-        // ==========================================
+
         function markNotificationAsRead(notifId) {
-            let readNotifIds = [];
-            try {
-                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
-                readNotifIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
-            } catch (e) {
-                readNotifIds = [];
-            }
-        
-            if (notifId !== undefined && notifId !== null && notifId !== '') {
-                // Tandai SATU notifikasi spesifik
-                const targetIdStr = String(notifId).trim();
-                if (!readNotifIds.includes(targetIdStr)) {
-                    readNotifIds.push(targetIdStr);
-                }
-            } else {
-                // Tandai SEMUA notifikasi saat ini sebagai terbaca
-                if (Array.isArray(notifications)) {
-                    notifications.forEach(n => {
-                        const nIdStr = String(n.id).trim();
-                        if (nIdStr && !readNotifIds.includes(nIdStr)) {
-                            readNotifIds.push(nIdStr);
-                        }
-                    });
-                }
-            }
-        
-            // Simpan kembali array ID string ke localStorage
-            localStorage.setItem('read_notif_ids', JSON.stringify(readNotifIds));
-        
-            // Re-render data notifikasi & update badge lonceng di UI
-            if (typeof generateDynamicNotifications === 'function') {
-                generateDynamicNotifications();
-            }
-            if (typeof renderNotificationDropdown === 'function') {
-                renderNotificationDropdown();
+            if (typeof markNotifAsRead === 'function' && notifId) {
+                markNotifAsRead(notifId);
+            } else if (typeof markAllNotificationsAsRead === 'function') {
+                markAllNotificationsAsRead();
             }
         }
         
@@ -2894,10 +2795,18 @@
 
             const durasiHours = calculateEditDuration() || 0;
 
+            let targetNama = typeof getRealNameByNpk === 'function' ? getRealNameByNpk(npkVal, '') : '';
+            if (!targetNama || targetNama === 'Karyawan') {
+                const existing = (Array.isArray(overtimeRequests) ? overtimeRequests : []).find(r => String(r.id || r.ID || '') === String(id));
+                if (existing) targetNama = existing.nama || existing.Nama || targetNama;
+            }
+            if (!targetNama) targetNama = 'Karyawan';
+
             const payload = {
                 id: id,
                 cabang: selectedCabang.value,
                 npk: npkVal,
+                nama: targetNama,
                 tanggal: tanggalVal,
                 jamMulai: jamMulaiVal,
                 jamSelesai: jamSelesaiVal,
@@ -2955,7 +2864,7 @@
             } else if (typeof fetchFromBackend === 'function') {
                 // Jika berjalan di lingkungan Vercel / fetch server proxy
                 try {
-                    const res = await fetchFromBackend('deleteOvertimeRequest', id);
+                    const res = await fetchFromBackend('deleteOvertimeRequest', { id: id });
                     if (res && res.success) {
                         showToast('Pengajuan lembur berhasil dihapus.', 'info');
                         loadAllDataServer();
@@ -2970,187 +2879,6 @@
             }
         }
         
-        // ==========================================
-        // RENDER LENGKAP REPORTS & PAYROLL (CLEAN & SYNCED)
-        // ==========================================
-        function renderReportsView() {
-            const isAdmin = currentUser && (currentUser.role || '').toString().toLowerCase() === 'admin';
-            const selectedCabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
-            const selectedBulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
-            const selectedTahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
-        
-            // Filter data yang statusnya Diterima/Approved
-            const filteredRequests = overtimeRequests.filter(r => {
-                let reqYear = "", reqMonth = "";
-                if (r.tanggal) {
-                    const tStr = r.tanggal.toString().trim();
-                    const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
-                    if (parts.length === 3) {
-                        if (parts[0].length === 4) { reqYear = parts[0]; reqMonth = parseInt(parts[1], 10).toString(); }
-                        else if (parts[2].length === 4) { reqYear = parts[2]; reqMonth = parseInt(parts[1], 10).toString(); }
-                    }
-                }
-        
-                const targetCabang = selectedCabang.toUpperCase();
-                const sheetCabang = (r.cabang || '').toString().toUpperCase();
-                const isCabangMatch = sheetCabang.includes(targetCabang) || targetCabang.includes(sheetCabang);
-                const statusClean = (r.status || '').toString().toLowerCase();
-                const isApproved = (statusClean === 'diterima' || statusClean === 'approved' || statusClean === 'revisi');
-        
-                if (isAdmin) {
-                    return isApproved && isCabangMatch && (reqYear ? reqYear === selectedTahun : true) && (selectedBulan === 'ALL' || reqMonth === selectedBulan);
-                } else {
-                    return isApproved && (r.npk || '').toString().trim() === (currentUser.npk || '').toString().trim();
-                }
-            });
-        
-            filteredRequests.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
-        
-            // 1. RENDER TABEL REKAPITULASI UPAH (SINKRON DENGAN GS BARU)
-            if (isAdmin) {
-                const rekapTbody = document.getElementById('table-rekapitulasi-body');
-                const rekapTfoot = document.getElementById('table-rekapitulasi-foot');
-                const employeeMap = {};
-        
-                filteredRequests.forEach(r => {
-                    const npkKey = (r.npk || '').toString().trim();
-                    if (!employeeMap[npkKey]) {
-                        let gajiPokok = Number(r.gaji) || 0;
-                        if (gajiPokok === 0 && karyawanList && karyawanList.length > 0) {
-                            const found = karyawanList.find(k => k.npk && k.npk.toString().trim() === npkKey);
-                            if (found) gajiPokok = Number(found.gaji) || 0;
-                        }
-        
-                        employeeMap[npkKey] = { 
-                            nama: r.nama, 
-                            npk: npkKey, 
-                            gaji: gajiPokok, 
-                            lembur1: 0, 
-                            lembur2: 0 
-                        };
-                    }
-        
-                    let dur = Number(r.durasiHours) || 0;
-        
-                    // Jika mode Hasil Adjust aktif, ambil durasi item spesifik
-                    if (reportModeRekap === 'adjust' && adjustmentsMap[npkKey]) {
-                        const adjData = adjustmentsMap[npkKey];
-                        if (adjData.items && adjData.items[r.id]) {
-                            dur = Number(adjData.items[r.id].durasiHours || adjData.items[r.id].durasi) || 0;
-                        }
-                    }
-        
-                    // HITUNG DINAMIS PER PENGAJUAN (Sama persis dengan GS):
-                    // Lembur 1 = Maksimal 1 jam/hari
-                    // Lembur 2 = Sisa durasi melebihi 1 jam
-                    employeeMap[npkKey].lembur1 += Math.min(dur, 1);
-                    employeeMap[npkKey].lembur2 += Math.max(0, dur - 1);
-                });
-        
-                const employeeList = Object.values(employeeMap);
-                employeeList.sort((a, b) => (parseInt(a.npk, 10) || 0) - (parseInt(b.npk, 10) || 0));
-        
-                let gL1 = 0, gL2 = 0, gPoin = 0, gEst = 0;
-                if (rekapTbody) {
-                    rekapTbody.innerHTML = employeeList.map((emp, idx) => {
-                        let l1 = emp.lembur1;
-                        let l2 = emp.lembur2;
-        
-                        // Jika ada potongan target poin langsung dari backend
-                        const adj = (reportModeRekap === 'adjust') ? adjustmentsMap[emp.npk] : null;
-                        if (adj) {
-                            if (adj.lembur1 !== undefined) l1 = Number(adj.lembur1) || 0;
-                            if (adj.lembur2 !== undefined) l2 = Number(adj.lembur2) || 0;
-                        }
-        
-                        const totalPoin = (l1 * 1.5) + (l2 * 2.7);
-                        const estimasiLembur = Math.round((emp.gaji / 173) * totalPoin);
-        
-                        // Hitung persen adjustment
-                        let empOrigPoin = 0;
-                        filteredRequests.filter(item => item.npk.toString().trim() === emp.npk.toString().trim()).forEach(item => {
-                            const d = Number(item.durasiHours) || 0;
-                            empOrigPoin += (Math.min(d, 1) * 1.5) + (Math.max(0, d - 1) * 2.7);
-                        });
-        
-                        const percent = empOrigPoin > 0 ? Math.round((totalPoin / empOrigPoin) * 100) : 100;
-                        const isAdjusted = !!adjustmentsMap[emp.npk];
-        
-                        gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
-        
-                        return `
-                            <tr class="hover:bg-slate-50 transition-all ${isAdjusted && reportModeRekap === 'adjust' ? 'bg-amber-50/40' : ''}">
-                                <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                                <td class="py-3 px-4 font-bold border-r border-slate-100">${emp.nama}</td>
-                                <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${emp.npk}</td>
-                                <td class="py-3 px-4 text-right border-r border-slate-100">Rp ${emp.gaji.toLocaleString('id-ID')}</td>
-                                <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
-                                <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
-                                <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                                <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                                <td class="py-3 px-4 text-center font-bold text-slate-900 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                                <td class="py-3 px-4 text-right font-bold text-emerald-600 border-r border-slate-100">Rp ${estimasiLembur.toLocaleString('id-ID')}</td>
-                                <td class="py-3 px-4 text-center">
-                                    <button onclick="openAdjustModal('${emp.npk}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-sm">
-                                        <i class="fa-solid fa-clock-rotate-left"></i> Adjust (${percent}%)
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('') || `<tr><td colspan="11" class="text-center py-6 text-slate-400">Belum ada data rekapitulasi lembur untuk filter ini.</td></tr>`;
-                }
-        
-                if (rekapTfoot) {
-                    rekapTfoot.innerHTML = employeeList.length > 0 ? `
-                        <tr>
-                            <td colspan="4" class="py-3.5 px-4 text-center font-bold uppercase border-r border-amber-200">Total Keseluruhan</td>
-                            <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL1.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3.5 px-4 text-center border-r border-amber-200">${gL2.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
-                            <td class="py-3.5 px-4 text-center border-r border-amber-200">0,00</td>
-                            <td class="py-3.5 px-4 text-center font-bold border-r border-amber-200">${gPoin.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3.5 px-4 text-right font-extrabold text-emerald-700 border-r border-amber-200">Rp ${gEst.toLocaleString('id-ID')}</td>
-                            <td class="py-3.5 px-4 text-center">-</td>
-                        </tr>
-                    ` : '';
-                }
-            }
-        
-            // 2. RENDER TABEL LOG RINCIAN HARIAN
-            const claimTbody = document.getElementById('table-claim-payroll-body');
-            if (claimTbody) {
-                claimTbody.innerHTML = filteredRequests.map((r, idx) => {
-                    let dur = Number(r.durasiHours) || 0;
-                    
-                    if (reportModeLog === 'adjust' && adjustmentsMap[r.npk]) {
-                        const adjData = adjustmentsMap[r.npk];
-                        if (adjData.items && adjData.items[r.id]) {
-                            dur = Number(adjData.items[r.id].durasiHours || adjData.items[r.id].durasi) || 0;
-                        }
-                    }
-                    
-                    let l1 = Math.min(dur, 1);
-                    let l2 = Math.max(0, dur - 1);
-                    const totalPoin = (l1 * 1.5) + (l2 * 2.7);
-        
-                    return `
-                        <tr class="hover:bg-slate-50 transition-all">
-                            <td class="py-3 px-4 text-center font-medium border-r border-slate-100">${idx + 1}</td>
-                            <td class="py-3 px-4 font-bold border-r border-slate-100">${r.nama}</td>
-                            <td class="py-3 px-4 text-center font-mono border-r border-slate-100">${r.npk}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${l1.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${l2.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">0,00</td>
-                            <td class="py-3 px-4 text-center font-bold text-amber-700 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-100">${r.tanggal}</td>
-                            <td class="py-3 px-4 ${isAdmin ? '' : 'border-r border-slate-100'}">${r.pekerjaan}</td>
-                            ${isAdmin ? '' : `<td class="py-3 px-4 text-center">${typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : r.status}</td>`}
-                        </tr>
-                    `;
-                }).join('') || `<tr><td colspan="${isAdmin ? 10 : 11}" class="text-center py-6 text-slate-400">Tidak ada log data detail harian.</td></tr>`;
-            }
-        }
                 
         // ==========================================
         // EKSPOR EXCEL NATIVE FORMULAS (FINAL SYNCED)
@@ -3340,36 +3068,18 @@
         }
 
         async function loadReportsView() {
-            const selTahun = document.getElementById('filter-report-tahun')?.value || new Date().getFullYear().toString();
-            const selBulan = document.getElementById('filter-report-bulan')?.value || (new Date().getMonth() + 1).toString();
-            const periodeKey = `${selTahun}-${selBulan.padStart(2, '0')}`;
-        
-            // 1. Ambil data adjustment 1x dari server lalu simpan ke Cache
-            try {
-                const res = await fetchFromBackend('getAdjustmentsByPeriod', { periodeKey: periodeKey });
-                if (res && res.success) {
-                    cachedAdjustments = res.data || [];
-                    
-                    // Masukkan ke Map agar pencarian data adjustment per NPK instan
-                    adjustmentsMap = {};
-                    cachedAdjustments.forEach(item => {
-                        if (item.npk) adjustmentsMap[item.npk.toString().trim()] = item;
-                    });
-                }
-            } catch (err) {
-                console.warn("Gagal mengambil data adjustment:", err);
+            if (typeof fetchServerAdjustments === 'function') {
+                await fetchServerAdjustments();
+            } else if (typeof renderReportsView === 'function') {
+                renderReportsView();
             }
-        
-            // 2. Render kedua tabel sekaligus secara otomatis
-            if (typeof renderRekapTable === 'function') renderRekapTable();
-            if (typeof renderLogTable === 'function') renderLogTable();
         }
         
         function getCurrentPeriodeKey() {
             const cabang = document.getElementById('filter-report-cabang') ? document.getElementById('filter-report-cabang').value : 'D660';
             const bulan = document.getElementById('filter-report-bulan') ? document.getElementById('filter-report-bulan').value : (new Date().getMonth() + 1).toString();
             const tahun = document.getElementById('filter-report-tahun') ? document.getElementById('filter-report-tahun').value : new Date().getFullYear().toString();
-            return `${cabang}_${bulan}_${tahun}`;
+            return `${cabang.toLowerCase()}_${bulan}_${tahun}`;
         }
         
         // 1. FUNGSI UNTUK MEMETAKAN DATA ADJUST DARI DATABASE GOOGLE SHEETS
@@ -4482,6 +4192,7 @@
         }
 
         async function loadDashboardActivity() {
+            if (!currentUser) return;
             try {
                 // 1. Panggil action 'getAllOvertimeData' yang sesuai dengan backend Kode.gs
                 const response = await fetchFromBackend('getAllOvertimeData');
