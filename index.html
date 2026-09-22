@@ -1583,6 +1583,7 @@
         function renderAllViews() {
             // 1. Jalankan render tiap tampilan secara aman
             if (typeof updatePendingBadge === 'function') updatePendingBadge();
+            if (typeof updateNotificationsUI === 'function') updateNotificationsUI(); // <-- TAMBAHKAN BARIS INI
             if (typeof renderDashboardView === 'function') renderDashboardView();
             if (typeof renderHistoryView === 'function') renderHistoryView();
             if (typeof renderApprovalsView === 'function') renderApprovalsView();
@@ -1604,7 +1605,7 @@
                 }
             }
         }
-
+        
         function renderHistoryView() {
             const tbody = document.getElementById('history-table-body');
             if (!tbody) return;
@@ -3899,114 +3900,171 @@
         }
 
         // ==========================================
-        // 1. TOGGLE POPOVER NOTIFIKASI
+        // NOTIFICATION SYSTEM LOGIC (FULLY INTEGRATED)
         // ==========================================
-        function toggleNotifications(e) {
-            if (e) e.stopPropagation();
-            const popover = document.getElementById('notif-popover');
-            if (!popover) return;
         
-            const isHidden = popover.classList.contains('hidden');
-            if (isHidden) {
-                popover.classList.remove('hidden');
-                markAllNotificationsAsRead(); // Tandai dibaca & update data dulu
-                renderNotifList();            // Render list dengan kondisi warna yang sudah diperbarui
-            } else {
-                popover.classList.add('hidden');
-            }
+        // 1. Fungsi Utama Generasi & Sinkronisasi Notifikasi
+        function updateNotificationsUI() {
+            generateNotificationsFromData();
+            renderNotifList();
+            updateNotifBadge();
         }
         
-        // ==========================================
-        // 2. RENDER DAFTAR NOTIFIKASI DI POPOVER
-        // ==========================================
+        // 2. Mengubah Data Overtime Menjadi Object Notifikasi
+        function generateNotificationsFromData() {
+            const isAdmin = (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') || 
+                            (currentUser && String(currentUser.role).toLowerCase() === 'admin');
+            const myNpk = String(currentUser?.npk || '').trim();
+            const allData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
+        
+            let filteredData = [];
+            if (isAdmin) {
+                // Admin melihat pengajuan yang butuh persetujuan
+                filteredData = allData.filter(r => String(r.status || '').toLowerCase() === 'pending');
+            } else {
+                // User melihat pengajuan milik sendiri
+                filteredData = allData.filter(r => String(r.npk || '').trim() === myNpk);
+            }
+        
+            // Ambil daftar ID yang sudah dibaca dari localStorage
+            let readIds = [];
+            try {
+                readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]').map(id => String(id).trim());
+            } catch (e) {
+                readIds = [];
+            }
+        
+            // Petakan ke array global 'notifications'
+            notifications = filteredData.map(item => {
+                const idStr = String(item.id || `${item.npk}_${item.tanggal}`).trim();
+                const statusClean = String(item.status || '').toLowerCase();
+                const durasiVal = Number(item.durasiHours || item.durasi || 0).toFixed(1).replace('.', ',');
+                const namaKaryawan = typeof getRealNameByNpk === 'function' 
+                    ? getRealNameByNpk(item.npk, item.nama) 
+                    : (item.nama || 'Karyawan');
+        
+                let title = "Pengajuan Lembur Baru";
+                let message = `${namaKaryawan} mengajukan lembur tanggal ${item.tanggal || '-'} (${durasiVal} Jam).`;
+                let targetPage = isAdmin ? 'approvals' : 'history';
+        
+                if (statusClean === 'approved' || statusClean === 'diterima') {
+                    title = "Pengajuan Disetujui";
+                    message = `Lembur Anda tanggal ${item.tanggal || '-'} (${durasiVal} Jam) telah disetujui.`;
+                    targetPage = 'history';
+                } else if (statusClean === 'rejected' || statusClean === 'ditolak') {
+                    title = "Pengajuan Ditolak";
+                    message = `Lembur Anda tanggal ${item.tanggal || '-'} (${durasiVal} Jam) ditolak.`;
+                    targetPage = 'history';
+                }
+        
+                return {
+                    id: idStr,
+                    title: title,
+                    message: message,
+                    time: item.tanggal || '',
+                    status: statusClean,
+                    targetPage: targetPage,
+                    read: readIds.includes(idStr)
+                };
+            });
+        }
+        
+        // 3. Render Daftar Notifikasi ke Popover
         function renderNotifList() {
             const listEl = document.getElementById('notif-list');
-            const countEl = document.getElementById('notif-count-text');
             if (!listEl) return;
         
             const notifArray = Array.isArray(notifications) ? notifications : [];
-            const unreadCount = notifArray.filter(n => !n.read).length;
-            
-            if (countEl) countEl.innerText = `${unreadCount} Baru`;
         
             if (notifArray.length === 0) {
                 listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>`;
                 return;
             }
         
-            listEl.innerHTML = notifArray.map(n => `
-                <div class="p-2.5 ${n.read ? 'bg-slate-50/50' : 'bg-blue-50/30'} border border-slate-100 rounded-xl transition-all mb-1.5">
+            listEl.innerHTML = notifArray.slice(0, 10).map(n => `
+                <div onclick="handleClickNotifItem('${n.id}', '${n.targetPage}')" 
+                     class="p-2.5 ${n.read ? 'bg-slate-50/50 hover:bg-slate-100/60' : 'bg-blue-50/40 hover:bg-blue-50/80'} border border-slate-100 rounded-xl transition-all mb-1.5 cursor-pointer">
                     <div class="flex items-center justify-between mb-1">
-                        <span class="font-bold text-[11px] ${n.read ? 'text-slate-600' : 'text-blue-700'}">${n.title || 'Notifikasi'}</span>
-                        <span class="text-[9px] text-slate-400">${n.time || ''}</span>
+                        <span class="font-bold text-[11px] ${n.read ? 'text-slate-600' : 'text-blue-700'}">${n.title}</span>
+                        <span class="text-[9px] text-slate-400 font-mono">${n.time}</span>
                     </div>
-                    <p class="text-[11px] text-slate-600 leading-snug">${n.message || ''}</p>
+                    <p class="text-[11px] text-slate-600 leading-snug">${n.message}</p>
                 </div>
             `).join('');
         }
         
-        // ==========================================
-        // 3. UPDATE BADGE MERAH DI LONCENG (SAFE STRING CHECK)
-        // ==========================================
+        // 4. Update Titik Merah (Badge) & Teks "X Baru"
         function updateNotifBadge() {
             const badge = document.getElementById('notif-badge');
             const countEl = document.getElementById('notif-count-text');
-            
-            let readIds = [];
-            try { 
-                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); 
-                readIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
-            } catch (e) {
-                readIds = [];
-            }
         
             const notifArray = Array.isArray(notifications) ? notifications : [];
-            // Pengecekan aman menggunakan String
-            const unreadCount = notifArray.filter(n => !readIds.includes(String(n.id).trim())).length;
+            const unreadCount = notifArray.filter(n => !n.read).length;
         
             if (badge) {
-                if (unreadCount > 0) {
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
+                if (unreadCount > 0) badge.classList.remove('hidden');
+                else badge.classList.add('hidden');
             }
             if (countEl) countEl.innerText = `${unreadCount} Baru`;
         }
         
-        // ==========================================
-        // 4. SIMPAN STATUS SUDAH DIBACA KE LOCALSTORAGE
-        // ==========================================
-        function markAllNotificationsAsRead() {
+        // 5. Handle Klik Item Notifikasi Individual
+        function handleClickNotifItem(id, targetPage) {
+            markNotifAsRead(id);
+            if (typeof navigateTo === 'function') navigateTo(targetPage);
+            const popover = document.getElementById('notif-popover');
+            if (popover) popover.classList.add('hidden');
+        }
+        
+        // 6. Tandai 1 Notifikasi Dibaca
+        function markNotifAsRead(id) {
             let readIds = [];
-            try { 
-                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); 
-                readIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
+            try {
+                readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+            } catch (e) {
+                readIds = [];
+            }
+            const cleanId = String(id).trim();
+            if (!readIds.includes(cleanId)) {
+                readIds.push(cleanId);
+                localStorage.setItem('read_notif_ids', JSON.stringify(readIds));
+            }
+            updateNotificationsUI();
+        }
+        
+        // 7. Tandai SEMUA Notifikasi Dibaca (Tombol Popover)
+        function markAllNotificationsAsRead() {
+            const notifArray = Array.isArray(notifications) ? notifications : [];
+            if (notifArray.length === 0) return;
+        
+            let readIds = [];
+            try {
+                readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
             } catch (e) {
                 readIds = [];
             }
         
-            const notifArray = Array.isArray(notifications) ? notifications : [];
-        
             notifArray.forEach(n => {
-                const nIdStr = String(n.id).trim();
-                if (nIdStr && !readIds.includes(nIdStr)) {
-                    readIds.push(nIdStr);
-                }
-                n.read = true; // Set properti lokal agar UI langsung berubah warna
+                const cleanId = String(n.id).trim();
+                if (!readIds.includes(cleanId)) readIds.push(cleanId);
             });
         
             localStorage.setItem('read_notif_ids', JSON.stringify(readIds));
-        
-            // Sembunyikan badge titik merah & update text
-            const badge = document.getElementById('notif-badge');
-            if (badge) badge.classList.add('hidden');
-        
-            const countEl = document.getElementById('notif-count-text');
-            if (countEl) countEl.innerText = `0 Baru`;
+            updateNotificationsUI();
+            if (typeof showToast === 'function') showToast("Semua notifikasi ditandai dibaca", "info");
         }
         
-        // Tutup popover jika pengguna mengklik di luar area notifikasi
+        // 8. Toggle Open/Close Popover Notifikasi
+        function toggleNotifications(e) {
+            if (e) e.stopPropagation();
+            const popover = document.getElementById('notif-popover');
+            if (popover) {
+                popover.classList.toggle('hidden');
+                updateNotificationsUI();
+            }
+        }
+        
+        // 9. Close Popover Saat Klik di Luar Wrapper
         document.addEventListener('click', function (e) {
             const wrapper = document.getElementById('notif-wrapper');
             const popover = document.getElementById('notif-popover');
