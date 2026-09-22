@@ -1138,20 +1138,22 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATION CONTAINER -->
+    <!-- WADAH POP-UP NOTIFIKASI REAL-TIME (POJOK KANAN ATAS) -->
+    <div id="notification-toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- TOAST NOTIFICATION CONTAINER BAWAAN (POJOK KANAN BAWAH) -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2"></div>
 
-        <div id="logoutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden transition-all">
+    <!-- MODAL LOGOUT -->
+    <div id="logoutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden transition-all">
         <div class="bg-white rounded-2xl p-6 w-80 shadow-2xl transform transition-all scale-95 opacity-0 duration-200" id="logoutModalContent">
             <div class="text-center">
-                <!-- Icon Peringatan -->
                 <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <h3 class="text-sm font-bold text-slate-800 mb-1">Keluar Sistem?</h3>
                 <p class="text-xs text-slate-500 mb-6">Apakah kamu yakin ingin keluar dari sesi Overtime Hub ini?</p>
                 
-                <!-- Tombol Aksi -->
                 <div class="flex gap-3">
                     <button onclick="closeLogoutModal()" class="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all">
                         Batal
@@ -1196,7 +1198,7 @@
                 </div>
             </div>
         </div>
-
+    
     <script>
         // ==========================================
         // GLOBAL DATA STATE
@@ -1224,6 +1226,9 @@
         let reportModeRekap = 'asli'; // 'asli' atau 'adjust'
         let reportModeLog = 'asli';   // 'asli' atau 'adjust'
         let cachedAdjustments = [];   // Cache data adjustment dari server
+
+        let lastPendingCount = -1;
+        let realtimePollingInterval = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. Tangkap parameter URL dengan aman ---
@@ -1940,82 +1945,121 @@
             }
         }, 45000);
 
+        // ==========================================
+        // GENERATE DYNAMIC NOTIFICATIONS (INTEGRATED)
+        // ==========================================
         function generateDynamicNotifications() {
             notifications = [];
             if (!currentUser) return;
             
-            // 1. Ambil daftar ID notifikasi yang sudah dibaca dari localStorage
+            // 1. Ambil ID notifikasi yang dibaca dari localStorage
             let readNotifIds = [];
             try {
-                readNotifIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+                readNotifIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
             } catch (e) {
                 readNotifIds = [];
             }
+        
+            const rawList = Array.isArray(overtimeRequests) ? overtimeRequests : [];
+            const isAdmin = String(currentUser.role || '').toLowerCase() === 'admin';
             
-            if (currentUser.role === 'admin') {
-                // ADMIN: Ambil daftar pengajuan yang statusnya Pending
-                const pendingList = overtimeRequests.filter(r => (r.status || '').toString().toLowerCase() === 'pending');
+            if (isAdmin) {
+                // ADMIN: Mengisi daftar notifikasi panel lonceng dari status Pending
+                const pendingList = rawList.filter(r => String(r.status || r.Status || '').toLowerCase().trim() === 'pending');
                 
                 pendingList.forEach(item => {
+                    const itemIdStr = String(item.id || item.ID || '').trim();
+                    const itemNpk = String(item.npk || item.NPK || '').trim();
+                    
+                    // Nama disinkronkan dengan NPK
+                    const realName = typeof getRealNameByNpk === 'function' 
+                        ? getRealNameByNpk(itemNpk, item.nama || item.Nama) 
+                        : (item.nama || item.Nama || 'Karyawan');
+        
                     notifications.push({
-                        id: item.id,
+                        id: itemIdStr,
                         title: 'Pengajuan Lembur Masuk',
-                        message: `${item.nama || 'Karyawan'} (${item.npk}) mengajukan lembur pada ${item.tanggal}.`,
+                        message: `${realName} (${itemNpk || '-'}) mengajukan lembur pada ${item.tanggal || item.Tanggal || '-'}.`,
                         time: 'Menunggu Persetujuan',
-                        read: readNotifIds.includes(item.id) // Check status dari localStorage
+                        read: readNotifIds.includes(itemIdStr)
                     });
                 });
             } else {
-                // KARYAWAN: Ambil pengajuan yang sudah di-ACC/Ditolak milik NPK-nya
-                const curNpk = currentUser.npk ? currentUser.npk.toString().trim() : '';
-                const myResponses = overtimeRequests.filter(r => {
-                    const isMyNpk = (r.npk || '').toString().trim() === curNpk;
-                    const st = (r.status || '').toString().toLowerCase();
+                // KARYAWAN: Mengisi daftar notifikasi panel lonceng dari respon Admin
+                const curNpk = String(currentUser.npk || '').trim();
+                const myResponses = rawList.filter(r => {
+                    const isMyNpk = String(r.npk || r.NPK || '').trim() === curNpk;
+                    const st = String(r.status || r.Status || '').toLowerCase().trim();
                     return isMyNpk && ['approved', 'rejected', 'diterima', 'ditolak'].includes(st);
                 });
         
                 myResponses.forEach(item => {
-                    const stLower = (item.status || '').toString().toLowerCase();
+                    const itemIdStr = String(item.id || item.ID || '').trim();
+                    const stLower = String(item.status || item.Status || '').toLowerCase().trim();
                     const isApproved = stLower === 'approved' || stLower === 'diterima';
                     const titleText = isApproved ? 'Lembur Disetujui' : 'Lembur Ditolak';
                     const statusLabel = isApproved ? 'diterima' : 'ditolak';
+                    const durasiNum = Number(item.durasiHours || item.durasi || 0).toFixed(1).replace('.', ',');
         
                     notifications.push({
-                        id: item.id,
+                        id: itemIdStr,
                         title: titleText,
-                        message: `Pengajuan tanggal ${item.tanggal} (${Number(item.durasiHours || 0).toFixed(1).replace('.', ',')} jam) telah di-${statusLabel} oleh Admin.`,
+                        message: `Pengajuan tanggal ${item.tanggal || item.Tanggal || '-'} (${durasiNum} jam) telah di-${statusLabel} oleh Admin.`,
                         time: isApproved ? 'Diterima' : 'Ditolak',
-                        read: readNotifIds.includes(item.id) // Check status dari localStorage
+                        read: readNotifIds.includes(itemIdStr)
                     });
                 });
             }
         
-            // 2. Perbarui badge angka & indikator titik merah di UI
-            updateNotifBadge();
+            // 2. Update badge angka lonceng di header
+            if (typeof updateNotifBadge === 'function') {
+                updateNotifBadge();
+            }
         }
         
-        // FUNGSI UNTUK TANDAI SEMUA/SALAH SATU NOTIFIKASI SUDAH DIBACA (Dipanggil saat lonceng/modal diklik)
+        // ==========================================
+        // TANDAI NOTIFIKASI DIBACA (SAFE STRING COMPARISON)
+        // ==========================================
         function markNotificationAsRead(notifId) {
             let readNotifIds = [];
             try {
-                readNotifIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]');
+                readNotifIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
             } catch (e) {
                 readNotifIds = [];
             }
         
-            if (notifId) {
-                if (!readNotifIds.includes(notifId)) readNotifIds.push(notifId);
+            if (notifId !== undefined && notifId !== null && notifId !== '') {
+                // Tandai SATU notifikasi spesifik
+                const targetIdStr = String(notifId).trim();
+                if (!readNotifIds.includes(targetIdStr)) {
+                    readNotifIds.push(targetIdStr);
+                }
             } else {
-                // Jika tidak ada parameter ID, tandai SEMUA notifikasi saat ini sebagai terbaca
-                notifications.forEach(n => {
-                    if (!readNotifIds.includes(n.id)) readNotifIds.push(n.id);
-                });
+                // Tandai SEMUA notifikasi saat ini sebagai terbaca
+                if (Array.isArray(notifications)) {
+                    notifications.forEach(n => {
+                        const nIdStr = String(n.id).trim();
+                        if (nIdStr && !readNotifIds.includes(nIdStr)) {
+                            readNotifIds.push(nIdStr);
+                        }
+                    });
+                }
             }
         
+            // Simpan kembali array ID string ke localStorage
             localStorage.setItem('read_notif_ids', JSON.stringify(readNotifIds));
-            generateDynamicNotifications(); // Re-render notifikasi
+        
+            // Re-render data notifikasi & update badge lonceng di UI
+            if (typeof generateDynamicNotifications === 'function') {
+                generateDynamicNotifications();
+            }
+            if (typeof renderNotificationDropdown === 'function') {
+                renderNotificationDropdown();
+            }
         }
-
+        
         // ==========================================
         // UTILITY FILTER TAHUN & BULAN REAL-TIME
         // ==========================================
@@ -3854,7 +3898,9 @@
             if (settingNpkEl) settingNpkEl.value = npkUser;
         }
 
-        // 1. Toggle Popover & Tandai Dibaca saat dibuka
+        // ==========================================
+        // 1. TOGGLE POPOVER NOTIFIKASI
+        // ==========================================
         function toggleNotifications(e) {
             if (e) e.stopPropagation();
             const popover = document.getElementById('notif-popover');
@@ -3863,48 +3909,60 @@
             const isHidden = popover.classList.contains('hidden');
             if (isHidden) {
                 popover.classList.remove('hidden');
-                renderNotifList(); // Render daftar notifikasi terbaru
-                markAllNotificationsAsRead(); // Tandai bahwa notif sudah dilihat
+                markAllNotificationsAsRead(); // Tandai dibaca & update data dulu
+                renderNotifList();            // Render list dengan kondisi warna yang sudah diperbarui
             } else {
                 popover.classList.add('hidden');
             }
         }
         
-        // 2. Render Daftar Notifikasi di Popover
+        // ==========================================
+        // 2. RENDER DAFTAR NOTIFIKASI DI POPOVER
+        // ==========================================
         function renderNotifList() {
             const listEl = document.getElementById('notif-list');
             const countEl = document.getElementById('notif-count-text');
             if (!listEl) return;
         
-            const unreadCount = notifications.filter(n => !n.read).length;
+            const notifArray = Array.isArray(notifications) ? notifications : [];
+            const unreadCount = notifArray.filter(n => !n.read).length;
+            
             if (countEl) countEl.innerText = `${unreadCount} Baru`;
         
-            if (notifications.length === 0) {
+            if (notifArray.length === 0) {
                 listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Tidak ada notifikasi baru.</p>`;
                 return;
             }
         
-            listEl.innerHTML = notifications.map(n => `
-                <div class="p-2.5 ${n.read ? 'bg-slate-50/50' : 'bg-blue-50/30'} border border-slate-100 rounded-xl transition-all">
+            listEl.innerHTML = notifArray.map(n => `
+                <div class="p-2.5 ${n.read ? 'bg-slate-50/50' : 'bg-blue-50/30'} border border-slate-100 rounded-xl transition-all mb-1.5">
                     <div class="flex items-center justify-between mb-1">
-                        <span class="font-bold text-[11px] ${n.read ? 'text-slate-600' : 'text-blue-700'}">${n.title}</span>
-                        <span class="text-[9px] text-slate-400">${n.time}</span>
+                        <span class="font-bold text-[11px] ${n.read ? 'text-slate-600' : 'text-blue-700'}">${n.title || 'Notifikasi'}</span>
+                        <span class="text-[9px] text-slate-400">${n.time || ''}</span>
                     </div>
-                    <p class="text-[11px] text-slate-600 leading-snug">${n.message}</p>
+                    <p class="text-[11px] text-slate-600 leading-snug">${n.message || ''}</p>
                 </div>
             `).join('');
         }
         
-        // 3. Update Badge Merah di Lonceng
+        // ==========================================
+        // 3. UPDATE BADGE MERAH DI LONCENG (SAFE STRING CHECK)
+        // ==========================================
         function updateNotifBadge() {
             const badge = document.getElementById('notif-badge');
             const countEl = document.getElementById('notif-count-text');
             
-            // Ambil ID notifikasi yang sudah dibaca dari localStorage
             let readIds = [];
-            try { readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); } catch (e) {}
+            try { 
+                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); 
+                readIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
+            } catch (e) {
+                readIds = [];
+            }
         
-            const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
+            const notifArray = Array.isArray(notifications) ? notifications : [];
+            // Pengecekan aman menggunakan String
+            const unreadCount = notifArray.filter(n => !readIds.includes(String(n.id).trim())).length;
         
             if (badge) {
                 if (unreadCount > 0) {
@@ -3916,22 +3974,34 @@
             if (countEl) countEl.innerText = `${unreadCount} Baru`;
         }
         
-        // 4. Simpan Status Sudah Dibaca ke LocalStorage
+        // ==========================================
+        // 4. SIMPAN STATUS SUDAH DIBACA KE LOCALSTORAGE
+        // ==========================================
         function markAllNotificationsAsRead() {
             let readIds = [];
-            try { readIds = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); } catch (e) {}
+            try { 
+                const rawSaved = JSON.parse(localStorage.getItem('read_notif_ids') || '[]'); 
+                readIds = Array.isArray(rawSaved) ? rawSaved.map(id => String(id).trim()) : [];
+            } catch (e) {
+                readIds = [];
+            }
         
-            notifications.forEach(n => {
-                if (!readIds.includes(n.id)) readIds.push(n.id);
-                n.read = true;
+            const notifArray = Array.isArray(notifications) ? notifications : [];
+        
+            notifArray.forEach(n => {
+                const nIdStr = String(n.id).trim();
+                if (nIdStr && !readIds.includes(nIdStr)) {
+                    readIds.push(nIdStr);
+                }
+                n.read = true; // Set properti lokal agar UI langsung berubah warna
             });
         
             localStorage.setItem('read_notif_ids', JSON.stringify(readIds));
-            
-            // Sembunyikan badge titik merah
+        
+            // Sembunyikan badge titik merah & update text
             const badge = document.getElementById('notif-badge');
             if (badge) badge.classList.add('hidden');
-            
+        
             const countEl = document.getElementById('notif-count-text');
             if (countEl) countEl.innerText = `0 Baru`;
         }
@@ -4418,6 +4488,120 @@
                     renderDashboardView();
                 }
             };
+        }
+
+        // ==========================================
+        // SYSTEM POP-UP NOTIFIKASI REAL-TIME UI
+        // ==========================================
+        function showRealtimePopupNotification({ title, message, type = 'info', duration = 5000 }) {
+            const container = document.getElementById('notification-toast-container');
+            if (!container) return;
+        
+            const toastId = 'toast-' + Date.now();
+            const isSuccess = type === 'success';
+            const isWarning = type === 'warning' || type === 'admin';
+        
+            const bgGradient = isSuccess 
+                ? 'bg-slate-900/95 border-emerald-500/50 text-white' 
+                : (isWarning ? 'bg-slate-900/95 border-amber-500/50 text-white' : 'bg-slate-900/95 border-blue-500/50 text-white');
+        
+            const iconHTML = isSuccess 
+                ? '<div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg flex-shrink-0"><i class="fa-solid fa-circle-check"></i></div>'
+                : (isWarning ? '<div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg flex-shrink-0"><i class="fa-solid fa-bell fa-bounce"></i></div>' 
+                             : '<div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg flex-shrink-0"><i class="fa-solid fa-info-circle"></i></div>');
+        
+            const toastHTML = `
+                <div id="${toastId}" class="pointer-events-auto flex items-start gap-3 p-4 rounded-2xl border ${bgGradient} shadow-2xl backdrop-blur-md transform translate-x-full transition-all duration-300 ease-out opacity-0">
+                    ${iconHTML}
+                    <div class="flex-1 pr-2">
+                        <h4 class="text-sm font-bold tracking-wide leading-snug">${title}</h4>
+                        <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">${message}</p>
+                    </div>
+                    <button onclick="dismissRealtimeToast('${toastId}')" class="text-slate-400 hover:text-white transition-all text-xs p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `;
+        
+            container.insertAdjacentHTML('beforeend', toastHTML);
+        
+            // Trigger Animasi Masuk
+            setTimeout(() => {
+                const el = document.getElementById(toastId);
+                if (el) {
+                    el.classList.remove('translate-x-full', 'opacity-0');
+                    el.classList.add('translate-x-0', 'opacity-100');
+                }
+            }, 50);
+        
+            // Otomatis Hilang setelah durasi
+            setTimeout(() => {
+                dismissRealtimeToast(toastId);
+            }, duration);
+        }
+
+        function dismissRealtimeToast(toastId) {
+            const el = document.getElementById(toastId);
+            if (!el) return;
+            el.classList.remove('translate-x-0', 'opacity-100');
+            el.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                el.remove();
+            }, 300);
+        }
+
+        // ==========================================
+        // REAL-TIME POLLING NOTIFIKASI UNTUK ADMIN
+        // =========================================
+        function startAdminRealtimeListener() {
+            // Hentikan interval lama jika ada
+            if (realtimePollingInterval) clearInterval(realtimePollingInterval);
+        
+            // Jalankan pengecekan berkala setiap 10 detik
+            realtimePollingInterval = setInterval(async () => {
+                const isAdmin = currentUserRole === 'admin' || (currentUser && currentUser.role === 'admin');
+                if (!isAdmin) return;
+        
+                try {
+                    // Refetch silent tanpa mengganggu UI
+                    const response = await fetchFromBackend('getAllOvertimeData');
+                    if (response && response.success && Array.isArray(response.data)) {
+                        const updatedRequests = response.data;
+                        const currentPendingList = updatedRequests.filter(r => String(r.status || r.Status || '').toLowerCase() === 'pending');
+                        const currentPendingCount = currentPendingList.length;
+        
+                        // Jika ada pengajuan pending baru masuk
+                        if (lastPendingCount !== -1 && currentPendingCount > lastPendingCount) {
+                            const diff = currentPendingCount - lastPendingCount;
+                            const latestItem = currentPendingList[0];
+                            const namaPengaju = latestItem ? (latestItem.nama || latestItem.Nama || 'Karyawan') : 'Karyawan';
+        
+                            // Munculkan Pop-up untuk Admin
+                            showRealtimePopupNotification({
+                                title: "Pengajuan Lembur Baru!",
+                                message: diff === 1 
+                                    ? `<b>${namaPengaju}</b> baru saja mengajukan lembur. Periksa menu Persetujuan.`
+                                    : `Ada <b>${diff} pengajuan lembur baru</b> menunggu verifikasi Anda.`,
+                                type: "admin",
+                                duration: 8000
+                            });
+        
+                            // Update state lokal dan re-render tampilan
+                            overtimeRequests = updatedRequests;
+                            if (typeof renderAllViews === 'function') renderAllViews();
+                        }
+        
+                        lastPendingCount = currentPendingCount;
+                    }
+                } catch (err) {
+                    console.log("Silent polling error:", err);
+                }
+            }, 10000); // Check setiap 10 detik
+        }
+        
+        // Jalankan listener saat sesi pengguna siap
+        if (typeof startAdminRealtimeListener === 'function') {
+            startAdminRealtimeListener();
         }
 
         document.addEventListener("DOMContentLoaded", function() {
