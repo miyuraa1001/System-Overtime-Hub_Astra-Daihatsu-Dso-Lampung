@@ -2513,6 +2513,10 @@
             }
         }
 
+        // Wrapper functions yang dipanggil langsung dari tombol HTML
+        function approveRequest(id) { handleApproval(id, 'Diterima'); }
+        function rejectRequest(id)  { handleApproval(id, 'Ditolak');  }
+
         // ==========================================
         // FUNGSI TERIMA SEMUA (APPROVE ALL PENDING)
         // ==========================================
