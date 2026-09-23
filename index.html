@@ -553,11 +553,41 @@
 
                 <!-- PAGE 3: HISTORY PAGE -->
                 <div id="page-history" class="page-content hidden space-y-6">
-                    <div>
-                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Riwayat Lembur (History)</h1>
-                        <p class="text-xs text-slate-500 mt-0.5">Daftar pengajuan lembur Anda. Dapat diedit/dihapus dalam kurun waktu 24 jam.</p>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Riwayat Lembur (History)</h1>
+                            <p class="text-xs text-slate-500 mt-0.5">Daftar pengajuan lembur. Dapat diedit/dihapus selama masih berstatus Pending.</p>
+                        </div>
+                        <!-- Badge jumlah data -->
+                        <span id="history-total-badge" class="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg flex-shrink-0">Total: 0 data</span>
                     </div>
-                
+
+                    <!-- Filter Bulan & Tahun -->
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-wrap items-center gap-3">
+                        <span class="text-xs font-semibold text-slate-500">Filter:</span>
+                        <select id="filter-history-bulan" onchange="renderHistoryView()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <option value="ALL">Semua Bulan</option>
+                            <option value="1">Januari</option>
+                            <option value="2">Februari</option>
+                            <option value="3">Maret</option>
+                            <option value="4">April</option>
+                            <option value="5">Mei</option>
+                            <option value="6">Juni</option>
+                            <option value="7">Juli</option>
+                            <option value="8">Agustus</option>
+                            <option value="9">September</option>
+                            <option value="10">Oktober</option>
+                            <option value="11">November</option>
+                            <option value="12">Desember</option>
+                        </select>
+                        <select id="filter-history-tahun" onchange="renderHistoryView()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
+                        </select>
+                    </div>
+
                     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse min-w-[750px]">
@@ -1657,62 +1687,94 @@
         function renderHistoryView() {
             const tbody = document.getElementById('history-table-body');
             if (!tbody) return;
-        
-            // 1. Ambil NPK user yang sedang login dengan Safe Guard
+
+            // 1. Cek role dan NPK user yang sedang login
             const myNpk = currentUser && currentUser.npk ? String(currentUser.npk).trim() : '';
-        
-            if (!myNpk) {
+            let userRole = 'user';
+            if (typeof currentUserRole !== 'undefined' && currentUserRole) {
+                userRole = currentUserRole.toString().trim().toLowerCase();
+            } else if (currentUser && (currentUser.role || currentUser.role_name)) {
+                userRole = (currentUser.role || currentUser.role_name).toString().trim().toLowerCase();
+            }
+            const isAdmin = (userRole === 'admin' || userRole === 'hrd');
+
+            if (!myNpk && !isAdmin) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Silakan login untuk melihat riwayat lembur Anda.</td></tr>`;
                 return;
             }
-        
+
             // 2. Ambil nilai filter bulan & tahun aktif
-            const selTahun = typeof selectedTahun !== 'undefined' ? String(selectedTahun) : (document.getElementById('filter-history-tahun')?.value || new Date().getFullYear().toString());
-            const selBulan = typeof selectedBulan !== 'undefined' ? String(selectedBulan) : (document.getElementById('filter-history-bulan')?.value || 'ALL');
+            const selTahun = (document.getElementById('filter-history-tahun')?.value) || new Date().getFullYear().toString();
+            const selBulan = (document.getElementById('filter-history-bulan')?.value) || 'ALL';
             const filterBulanClean = selBulan === 'ALL' ? 'ALL' : parseInt(selBulan, 10).toString();
-        
+
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
-        
-            // 3. Filter KHUSUS NPK milik user yang sedang login
+
+            // 3. Filter berdasarkan role:
+            //    - Admin/HRD: tampilkan semua data
+            //    - User biasa: hanya tampilkan data NPK sendiri
             const filteredHistory = listData.filter(r => {
                 const itemNpk = r.npk ? String(r.npk).trim() : '';
-                const isMyData = itemNpk === myNpk;
-                if (!isMyData) return false;
-        
-                let reqYear = "", reqMonth = "";
+
+                // Cek kepemilikan data
+                if (!isAdmin && itemNpk !== myNpk) return false;
+
+                // Cek filter tahun & bulan
+                let reqYear = '', reqMonth = '';
                 if (r.tanggal) {
                     const tStr = String(r.tanggal).trim();
                     const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
-                    
                     if (parts.length === 3) {
-                        if (parts[0].length === 4) { 
+                        if (parts[0].length === 4) {
                             // Format: YYYY-MM-DD
-                            reqYear = parts[0]; 
-                            reqMonth = parseInt(parts[1], 10).toString(); 
-                        } else if (parts[2].length === 4) { 
+                            reqYear = parts[0];
+                            reqMonth = parseInt(parts[1], 10).toString();
+                        } else if (parts[2].length === 4) {
                             // Format: DD-MM-YYYY
-                            reqYear = parts[2]; 
-                            reqMonth = parseInt(parts[1], 10).toString(); 
+                            reqYear = parts[2];
+                            reqMonth = parseInt(parts[1], 10).toString();
                         }
                     }
                 }
-        
+
                 const isYearMatch = reqYear ? reqYear === selTahun : true;
                 const isMonthMatch = filterBulanClean === 'ALL' || reqMonth === filterBulanClean;
-        
+
                 return isYearMatch && isMonthMatch;
             });
-        
-            // 4. Render baris tabel
+
+            // 4. Urutkan: terbaru dulu
+            filteredHistory.sort((a, b) => {
+                const dateA = new Date(a.tanggal || '2000-01-01');
+                const dateB = new Date(b.tanggal || '2000-01-01');
+                return dateB - dateA;
+            });
+
+            // Update badge jumlah data
+            const badge = document.getElementById('history-total-badge');
+            if (badge) badge.textContent = `Total: ${filteredHistory.length} data`;
+
+            // 5. Render baris tabel
+            if (filteredHistory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400">
+                    <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-40"></i>
+                    ${isAdmin ? 'Tidak ada data lembur untuk periode ini.' : 'Tidak ada riwayat pengajuan lembur Anda untuk periode ini.'}
+                </td></tr>`;
+                return;
+            }
+
             tbody.innerHTML = filteredHistory.map(r => {
                 const statusLower = (r.status || '').toString().toLowerCase();
                 const isPending = statusLower === 'pending';
-                const durasiFormatted = Number(r.durasiHours || 0).toFixed(1).replace('.', ',');
-        
-                // FALLBACK NAMA: Memastikan nama tidak pernah 'undefined' atau 'null'
-                const displayName = r.nama || r.namaKaryawan || r.username || (currentUser ? currentUser.nama : '') || 'Karyawan';
-                const displayNpk = r.npk || myNpk || '-';
-        
+                const durasiFormatted = Number(r.durasiHours || r.durasi || 0).toFixed(1).replace('.', ',');
+
+                // Lookup nama dari karyawanList jika tersedia
+                const npkKey = String(r.npk || '').trim();
+                const displayName = (typeof getRealNameByNpk === 'function')
+                    ? getRealNameByNpk(npkKey, r.nama || r.namaKaryawan || r.username || '')
+                    : (r.nama || r.namaKaryawan || r.username || (currentUser ? currentUser.nama : '') || 'Karyawan');
+                const displayNpk = npkKey || myNpk || '-';
+
                 const badgeHTML = typeof getStatusBadge === 'function' ? getStatusBadge(r.status) : `
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                         statusLower === 'diterima' || statusLower === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
@@ -1723,7 +1785,7 @@
                         ${r.status || 'Pending'}
                     </span>
                 `;
-        
+
                 return `
                     <tr class="hover:bg-slate-50/80 transition-all">
                         <td class="py-3.5 px-4 font-semibold text-slate-800">
@@ -1749,9 +1811,9 @@
                         </td>
                     </tr>
                 `;
-            }).join('') || `<tr><td colspan="8" class="text-center py-8 text-slate-400">Tidak ada riwayat pengajuan lembur pribadi Anda.</td></tr>`;
+            }).join('');
         }
-        
+
 
         // ==========================================
         // RENDER TABEL AKTIVITAS TERKINI (OPTIMIZED FOR YYYY-MM-DD & NPK SYNC)
