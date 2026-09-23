@@ -2473,43 +2473,62 @@
         // ==========================================
         async function handleApproval(id, status) {
             if (!id) return;
-        
+
             // Normalisasi ID ke bentuk string
             const targetIdStr = String(id).trim();
             const isAccepted = (status === 'Diterima' || status === 'Approved');
             const newStatus = isAccepted ? 'Diterima' : 'Ditolak';
-        
-            // 1. Cari data di lokal dengan perbandingan aman (String)
-            const targetReq = overtimeRequests.find(r => String(r.id || r.ID || '').trim() === targetIdStr);
-        
+
+            // --- Loading state: nonaktifkan semua tombol di baris ini ---
+            const allBtns = document.querySelectorAll(
+                `button[onclick="approveRequest('${targetIdStr}')"],button[onclick="rejectRequest('${targetIdStr}')"]`
+            );
+            allBtns.forEach(b => {
+                b.disabled = true;
+                b.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+
+            // 1. Cari data di lokal — coba semua field ID yang mungkin
+            const targetReq = (Array.isArray(overtimeRequests) ? overtimeRequests : []).find(r =>
+                String(r.id || r.ID || r.rowIndex || r.row || '').trim() === targetIdStr
+            );
+
             // Simpan status lama untuk rollback jika backend gagal
-            const oldStatus = targetReq ? targetReq.status : 'Pending';
-        
+            const oldStatus = targetReq ? (targetReq.status || targetReq.Status || 'Pending') : 'Pending';
+
             if (targetReq) {
                 targetReq.status = newStatus; // Update lokal sementara (Optimistic UI)
-                if (typeof renderAllViews === 'function') renderAllViews();
-                showToast(isAccepted ? 'Pengajuan lembur diterima!' : 'Pengajuan lembur ditolak!', isAccepted ? 'success' : 'error');
+                if (typeof renderApprovalsView === 'function') renderApprovalsView();
+                if (typeof updatePendingBadge === 'function') updatePendingBadge();
+                showToast(
+                    isAccepted ? '✅ Pengajuan lembur diterima!' : '❌ Pengajuan lembur ditolak!',
+                    isAccepted ? 'success' : 'error'
+                );
+            } else {
+                showToast('Data pengajuan tidak ditemukan secara lokal.', 'warning');
             }
-        
+
             try {
                 // 2. Kirim ke backend Google Apps Script
                 const res = await fetchFromBackend('updateOvertimeStatus', { id: targetIdStr, status: newStatus });
-                
+
                 if (res && res.success) {
                     // Refresh data dari server agar sinkron penuh
-                    await loadAllDataServer(); 
+                    await loadAllDataServer();
                 } else {
                     // Rollback jika server merespon gagal
                     if (targetReq) targetReq.status = oldStatus;
-                    if (typeof renderAllViews === 'function') renderAllViews();
-                    showToast("Gagal memperbarui status di database.", "error");
+                    if (typeof renderApprovalsView === 'function') renderApprovalsView();
+                    if (typeof updatePendingBadge === 'function') updatePendingBadge();
+                    showToast('Gagal memperbarui status: ' + (res ? (res.message || 'Respons tidak valid dari server.') : 'Server tidak merespons.'), 'error');
                     await loadAllDataServer();
                 }
             } catch (err) {
-                console.error("Error handleApproval:", err);
+                console.error('Error handleApproval:', err);
                 if (targetReq) targetReq.status = oldStatus;
-                if (typeof renderAllViews === 'function') renderAllViews();
-                showToast("Error sistem saat memperbarui status.", "error");
+                if (typeof renderApprovalsView === 'function') renderApprovalsView();
+                if (typeof updatePendingBadge === 'function') updatePendingBadge();
+                showToast('Error jaringan saat memperbarui status: ' + err.message, 'error');
             }
         }
 
@@ -2579,15 +2598,32 @@
         }
 
         function updatePendingBadge() {
-            const badgePending = document.getElementById('badge-pending-count');
-            if (!badgePending) return;
-        
             // Hitung semua data yang berstatus pending (case-insensitive)
-            const totalPending = overtimeRequests.filter(r => 
-                (r.status || '').toString().toLowerCase() === 'pending'
+            const totalPending = (Array.isArray(overtimeRequests) ? overtimeRequests : []).filter(r =>
+                (r.status || r.Status || '').toString().toLowerCase().trim() === 'pending'
             ).length;
-        
-            badgePending.innerText = totalPending;
+
+            // 1. Update badge notifikasi sidebar
+            const badgePending = document.getElementById('badge-pending-count');
+            if (badgePending) badgePending.innerText = totalPending;
+
+            // 2. Update angka di tombol "Terima Semua"
+            const btnCount = document.getElementById('btn-approve-all-count');
+            if (btnCount) btnCount.innerText = totalPending;
+
+            // 3. Disable tombol jika tidak ada pending, enable jika ada
+            const btnApproveAll = document.getElementById('btn-approve-all');
+            if (btnApproveAll) {
+                if (totalPending === 0) {
+                    btnApproveAll.disabled = true;
+                    btnApproveAll.classList.add('opacity-50', 'cursor-not-allowed');
+                    btnApproveAll.classList.remove('hover:bg-emerald-700');
+                } else {
+                    btnApproveAll.disabled = false;
+                    btnApproveAll.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btnApproveAll.classList.add('hover:bg-emerald-700');
+                }
+            }
         }
 
         // MODAL ADJUSTMENT (PEMUTUSAN JAM LEMBUR)
