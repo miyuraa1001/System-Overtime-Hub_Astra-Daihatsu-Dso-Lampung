@@ -52,33 +52,34 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         /* ====================================================
-           GLOBAL TABLE HEADER STYLES
-           Header tabel utama: gradient biru-indigo, teks putih
+           GLOBAL TABLE HEADER STYLES — Soft & Calm
         ==================================================== */
         table thead tr {
-            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-            color: #ffffff;
+            background: #f1f5f9;               /* slate-100 — kalem, tidak menyatu */
+            color: #334155;                    /* slate-700 — kontras, terbaca jelas */
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.07em;
             text-transform: uppercase;
-            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.18);
+            border-bottom: 2px solid #cbd5e1;  /* slate-300 — garis pemisah tegas */
         }
         table thead tr th {
             padding-top: 13px;
             padding-bottom: 13px;
-            border-bottom: none;
             white-space: nowrap;
         }
 
-        /* Override khusus tabel laporan rekap (amber/orange) */
+        /* Override tabel laporan rekap (amber) */
         table thead tr.thead-amber {
-            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-            box-shadow: 0 2px 6px rgba(217, 119, 6, 0.18);
+            background: #fef3c7;               /* amber-100 */
+            color: #92400e;                    /* amber-800 */
+            border-bottom: 2px solid #fcd34d;  /* amber-300 */
         }
+        /* Override tabel claim payroll (orange) */
         table thead tr.thead-orange {
-            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
-            box-shadow: 0 2px 6px rgba(234, 88, 12, 0.18);
+            background: #ffedd5;               /* orange-100 */
+            color: #9a3412;                    /* orange-800 */
+            border-bottom: 2px solid #fdba74;  /* orange-300 */
         }
     </style>
 </head>
@@ -686,17 +687,17 @@
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
-                                    <tr class="thead-amber text-[11px] font-bold text-white border-b border-amber-100">
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">No</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30">Nama</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">NPK</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-right">Gaji</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">Lembur I</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">Lembur II</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">Lembur III</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">Lembur IV</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-center">Total Poin</th>
-                                        <th class="py-3 px-4 border-r border-amber-400/30 text-right">Estimasi Lembur</th>
+                                    <tr class="thead-amber">
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">No</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50">Nama</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">NPK</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-right">Gaji</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">Lembur I</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">Lembur II</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">Lembur III</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">Lembur IV</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-center">Total Poin</th>
+                                        <th class="py-3 px-4 border-r border-amber-300/50 text-right">Estimasi Lembur</th>
                                         <th class="py-3 px-4 text-center">Aksi / Adjust</th>
                                     </tr>
                                 </thead>
@@ -744,8 +745,17 @@
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
-                                    <tr id="table-claim-header-row" class="thead-orange text-[11px] font-bold text-white border-b border-orange-100">
-                                        <!-- Dinamis: diisi oleh renderReportsView() -->
+                                    <tr id="table-claim-header-row" class="thead-orange">
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">No</th>
+                                        <th class="py-3 px-4 border-r border-orange-200/60">Nama</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">NPK</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">Lembur I</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">Lembur II</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">Lembur III</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">Lembur IV</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">Total Poin</th>
+                                        <th class="py-3 px-4 text-center border-r border-orange-200/60">Tanggal</th>
+                                        <th class="py-3 px-4">Keterangan</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-claim-payroll-body" class="divide-y divide-slate-100 text-xs text-slate-700">
