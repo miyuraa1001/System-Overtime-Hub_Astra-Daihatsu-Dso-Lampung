@@ -2326,8 +2326,23 @@
             const target = document.getElementById(`page-${pageId}`);
             if (target) target.classList.remove('hidden');
         
-            if (typeof closeSidebar === 'function') closeSidebar();
-            if (typeof updateActiveSidebar === 'function') updateActiveSidebar(pageId);
+            try {
+                if (typeof closeSidebar === 'function') closeSidebar();
+            } catch (err) {
+                console.warn('Error in closeSidebar:', err);
+            }
+
+            try {
+                if (typeof updateActiveSidebar === 'function') updateActiveSidebar(pageId);
+            } catch (err) {
+                console.warn('Error in updateActiveSidebar:', err);
+            }
+
+            try {
+                if (typeof updateActiveBottomNav === 'function') updateActiveBottomNav(pageId);
+            } catch (err) {
+                console.warn('Error in updateActiveBottomNav:', err);
+            }
         
             // PERBAIKAN 2: Routing render tampilan lengkap sesuai halaman
             if (pageId === 'dashboard') {
@@ -2418,13 +2433,17 @@
             const centerBtn = document.getElementById('bottom-nav-new-request');
 
             if (pageId === 'new-request') {
-                if (centerBtn) centerBtn.classList.add('ring-4', 'ring-blue-300/50');
+                if (centerBtn) centerBtn.classList.add('ring-4', 'ring-blue-300/50', 'scale-105');
             } else {
-                if (centerBtn) centerBtn.classList.remove('ring-4', 'ring-blue-300/50');
+                if (centerBtn) centerBtn.classList.remove('ring-4', 'ring-blue-300/50', 'scale-105');
             }
 
-            if (pageId === 'reports') {
-                const isAdm = currentUserRole === 'admin';
+            let isAdm = false;
+            if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') isAdm = true;
+            else if (currentUser && (currentUser.role || currentUser.role_name) === 'admin') isAdm = true;
+            else if (localStorage.getItem('overtime_user_role') === 'admin') isAdm = true;
+
+            if (pageId === 'reports' || pageId === 'reports-payroll') {
                 activeBottomId = isAdm ? 'bottom-nav-menu' : 'bottom-nav-reports-user';
             } else if (pageId === 'karyawan' || pageId === 'settings') {
                 activeBottomId = 'bottom-nav-menu';
@@ -2474,18 +2493,18 @@
             const backdrop = document.getElementById('sidebar-backdrop');
             const isDesktop = window.innerWidth >= 1024;
 
-            if (isDesktop) {
+            if (isDesktop && sidebar) {
                 // Toggle sembunyikan sidebar di layar desktop
                 if (sidebar.classList.contains('lg:hidden')) {
                     sidebar.classList.remove('lg:hidden');
                 } else {
                     sidebar.classList.add('lg:hidden');
                 }
-            } else {
+            } else if (sidebar) {
                 // Toggle sidebar di layar HP/Tablet
                 if (sidebar.classList.contains('-translate-x-full')) {
                     sidebar.classList.remove('-translate-x-full');
-                    backdrop.classList.remove('hidden');
+                    if (backdrop) backdrop.classList.remove('hidden');
                 } else {
                     closeSidebar();
                 }
@@ -2495,8 +2514,8 @@
         function closeSidebar() {
             const sidebar = document.getElementById('sidebar');
             const backdrop = document.getElementById('sidebar-backdrop');
-            sidebar.classList.add('-translate-x-full');
-            backdrop.classList.add('hidden');
+            if (sidebar) sidebar.classList.add('-translate-x-full');
+            if (backdrop) backdrop.classList.add('hidden');
         }
 
         function handleGlobalSearch(query) {
