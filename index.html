@@ -463,7 +463,8 @@
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 mb-1">NPK <span class="text-rose-500">*</span></label>
                                 <p class="text-[11px] text-slate-400 mb-2">Tidak perlu 0 di depan, Contoh: 55618</p>
-                                <input type="text" id="form-npk" required placeholder="Jawaban Anda" oninput="checkDailySubmissionLock()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                                <input type="text" id="form-npk" required placeholder="Jawaban Anda" oninput="onNpkInputChange()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                                <div id="form-npk-info" class="hidden text-xs mt-2 transition-all"></div>
                             </div>
                 
                             <div>
@@ -1446,6 +1447,7 @@
         window.onload = function () {
             initRealtimeFilterDates();
             populateDashboardYearFilter(); 
+            if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
         
             const savedCreds = localStorage.getItem('overtime_saved_credentials');
             if (savedCreds) {
@@ -2162,6 +2164,15 @@
                     renderKaryawanTable();
                 }
             } else if (pageId === 'new-request') {
+                const elNpk = document.getElementById('form-npk');
+                if (currentUser && currentUser.role !== 'admin' && elNpk && !elNpk.value) {
+                    elNpk.value = currentUser.npk || '';
+                }
+                if (elNpk && elNpk.value) {
+                    if (typeof autoSyncCabangByNpk === 'function') autoSyncCabangByNpk(elNpk.value);
+                } else {
+                    if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
+                }
                 if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
             }
         }
@@ -2370,6 +2381,121 @@
             return 0;
         }
 
+        // ==========================================
+        // AUTO-SYNC CABANG SESUAI NPK DARI DATABASE
+        // ==========================================
+        function highlightSelectedCabang() {
+            const radios = document.querySelectorAll('input[name="form-cabang"]');
+            radios.forEach(r => {
+                const card = r.closest('label');
+                if (!card) return;
+                if (r.checked) {
+                    card.classList.add('border-blue-500', 'bg-blue-50/70', 'ring-2', 'ring-blue-500/20');
+                    card.classList.remove('bg-slate-50', 'border-slate-200');
+                } else {
+                    card.classList.remove('border-blue-500', 'bg-blue-50/70', 'ring-2', 'ring-blue-500/20');
+                    card.classList.add('bg-slate-50', 'border-slate-200');
+                }
+            });
+        }
+
+        function autoSyncCabangByNpk(npkVal) {
+            const cleanNpk = (npkVal || '').toString().trim();
+            const infoEl = document.getElementById('form-npk-info');
+
+            if (!cleanNpk) {
+                if (infoEl) infoEl.classList.add('hidden');
+                highlightSelectedCabang();
+                return;
+            }
+
+            let foundKaryawan = null;
+
+            // 1. Cari di master karyawanList (hasil sinkronisasi database Google Sheets)
+            if (Array.isArray(karyawanList) && karyawanList.length > 0) {
+                foundKaryawan = karyawanList.find(k => {
+                    const itemNpk = (k.npk || k.NPK || '').toString().trim();
+                    return itemNpk === cleanNpk;
+                });
+            }
+
+            // 2. Fallback ke currentUser jika sedang login dan NPK cocok
+            if (!foundKaryawan && currentUser) {
+                const myNpk = (currentUser.npk || currentUser.NPK || '').toString().trim();
+                if (myNpk === cleanNpk) {
+                    foundKaryawan = currentUser;
+                }
+            }
+
+            // 3. Fallback jika karyawanList belum selesai termuat, cari dari riwayat overtimeRequests
+            if (!foundKaryawan && Array.isArray(overtimeRequests) && overtimeRequests.length > 0) {
+                const prev = overtimeRequests.find(r => (r.npk || r.NPK || '').toString().trim() === cleanNpk && (r.cabang || r.Cabang));
+                if (prev) {
+                    foundKaryawan = {
+                        nama: prev.nama || prev.Nama,
+                        cabang: prev.cabang || prev.Cabang
+                    };
+                }
+            }
+
+            if (foundKaryawan && foundKaryawan.cabang) {
+                const rawCabang = String(foundKaryawan.cabang).trim().toUpperCase();
+                let targetCode = 'D660';
+                if (rawCabang.includes('D660') || rawCabang.includes('AHMAD YANI') || rawCabang.includes('YANI')) targetCode = 'D660';
+                else if (rawCabang.includes('D661') || rawCabang.includes('SOEKARNO') || rawCabang.includes('HATTA')) targetCode = 'D661';
+                else if (rawCabang.includes('D662') || rawCabang.includes('BANDARJAYA') || rawCabang.includes('BANDAR JAYA')) targetCode = 'D662';
+                else if (rawCabang.includes('D663') || rawCabang.includes('KOTABUMI') || rawCabang.includes('KOTA BUMI')) targetCode = 'D663';
+                else if (rawCabang.includes('D664') || rawCabang.includes('TIMUR')) targetCode = 'D664';
+                else targetCode = rawCabang;
+
+                const targetRadio = document.querySelector(`input[name="form-cabang"][value="${targetCode}"]`);
+                if (targetRadio) {
+                    targetRadio.checked = true;
+                    highlightSelectedCabang();
+                }
+
+                // Tampilkan info karyawan & cabang otomatis
+                if (infoEl) {
+                    const empName = foundKaryawan.nama || foundKaryawan.Nama || foundKaryawan.namaKaryawan || 'Karyawan';
+                    infoEl.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-medium">
+                        <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                        <span><strong>${empName}</strong> — Cabang otomatis: <span class="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">${targetCode}</span></span>
+                    </span>`;
+                    infoEl.classList.remove('hidden');
+                }
+            } else {
+                highlightSelectedCabang();
+                if (infoEl) {
+                    if (cleanNpk.length >= 3) {
+                        infoEl.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-500 border border-slate-200">
+                            <i class="fa-solid fa-circle-info text-slate-400"></i>
+                            <span>NPK belum terdaftar di Master Karyawan. Cabang dapat dipilih manual.</span>
+                        </span>`;
+                        infoEl.classList.remove('hidden');
+                    } else {
+                        infoEl.classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        function onNpkInputChange() {
+            if (typeof checkDailySubmissionLock === 'function') {
+                checkDailySubmissionLock();
+            }
+            const elNpk = document.getElementById('form-npk');
+            if (elNpk) {
+                autoSyncCabangByNpk(elNpk.value);
+            }
+        }
+
+        // Listener klik manual pada kartu cabang
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.name === 'form-cabang') {
+                highlightSelectedCabang();
+            }
+        });
+
         function checkDailySubmissionLock() {
             const tanggal = document.getElementById('form-tanggal').value;
             const inputNPK = document.getElementById('form-npk').value.trim();
@@ -2499,8 +2625,12 @@
                     if (elJamSelesai) elJamSelesai.value = '20:00';
                     if (currentUser && currentUser.role !== 'admin' && elNpk) {
                         elNpk.value = currentUser.npk || '';
+                        if (typeof autoSyncCabangByNpk === 'function') autoSyncCabangByNpk(elNpk.value);
                     } else if (elNpk) {
                         elNpk.value = '';
+                        const infoEl = document.getElementById('form-npk-info');
+                        if (infoEl) infoEl.classList.add('hidden');
+                        if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
                     }
                     if (typeof calculateFormDuration === 'function') calculateFormDuration();
 
@@ -4139,6 +4269,10 @@
                 if (res && res.success && res.data && res.data.length > 0) {
                     karyawanList = res.data || [];
                     renderKaryawanTable();
+                    const elNpk = document.getElementById('form-npk');
+                    if (elNpk && elNpk.value) {
+                        if (typeof autoSyncCabangByNpk === 'function') autoSyncCabangByNpk(elNpk.value);
+                    }
                 } else {
                     console.warn("API Master Karyawan kosong/gagal, menggunakan fallback sesi lokal.");
                     // 🛠️ Fallback pengaman: Jika fetch gagal, ambil dari data user yang sedang login atau localStorage
