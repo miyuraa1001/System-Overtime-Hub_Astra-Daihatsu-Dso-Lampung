@@ -1161,11 +1161,13 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-800 mb-1">Jam Mulai <span class="text-rose-500">*</span></label>
-                        <input type="time" id="edit-jam-mulai" required onchange="calculateEditDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        <p class="text-[11px] text-slate-400 mb-1">Contoh : 17:00</p>
+                        <input type="text" readonly onclick="openAnalogClock('edit-jam-mulai')" id="edit-jam-mulai" required value="" onchange="calculateEditDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-800 mb-1">Jam Selesai <span class="text-rose-500">*</span></label>
-                        <input type="time" id="edit-jam-selesai" required onchange="calculateEditDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        <p class="text-[11px] text-slate-400 mb-1">Contoh : 20:00</p>
+                        <input type="text" readonly onclick="openAnalogClock('edit-jam-selesai')" id="edit-jam-selesai" required value="" onchange="calculateEditDuration()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
                 </div>
 
