@@ -2477,37 +2477,59 @@
         
             try {
                 const res = await apiSubmitOvertime(payload);
-        
+
                 if (res && res.success) {
-                    showToast(res.message || "Pengajuan lembur berhasil dikirim!", "success");
-                    
+                    // 1. LANGSUNG unlock button dan reset form — jangan tahan user menunggu reload
+                    submitBtn.disabled = false;
+                    submitBtn.style.pointerEvents = 'auto';
+                    submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> <span>Kirim Pengajuan Lembur</span>';
+
+                    // 2. Tampilkan popup sukses langsung
+                    showSuccessPopup(
+                        'Pengajuan Berhasil Dikirim! 🎉',
+                        `Pengajuan lembur untuk <strong>${tanggalVal}</strong> telah berhasil dikirim dan menunggu persetujuan admin.`
+                    );
+
+                    // 3. Reset form
                     const formEl = document.getElementById('overtime-form');
                     if (formEl) formEl.reset();
-                    
-                    if (elJamMulai) elJamMulai.value = "17:00";
-                    if (elJamSelesai) elJamSelesai.value = "20:00";
-                    
+                    if (elJamMulai) elJamMulai.value = '17:00';
+                    if (elJamSelesai) elJamSelesai.value = '20:00';
                     if (currentUser && currentUser.role !== 'admin' && elNpk) {
                         elNpk.value = currentUser.npk || '';
                     } else if (elNpk) {
                         elNpk.value = '';
                     }
-                    
                     if (typeof calculateFormDuration === 'function') calculateFormDuration();
-                    
-                    // Reload data server agar pengajuan baru (Pending) langsung masuk ke History & Dashboard
-                    await loadAllDataServer();
-                    
-                    if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
-                    
-                    navigateTo('history'); // Pindah ke halaman history
+
+                    // 4. Tambahkan data baru ke local array langsung (tanpa tunggu server)
+                    if (Array.isArray(overtimeRequests) && res.id) {
+                        overtimeRequests.unshift({
+                            id: res.id,
+                            cabang: payload.cabang,
+                            npk: payload.npk,
+                            nama: payload.nama,
+                            tanggal: payload.tanggal,
+                            jamMulai: payload.jamMulai,
+                            jamSelesai: payload.jamSelesai,
+                            durasiHours: payload.durasiHours,
+                            pekerjaan: payload.pekerjaan,
+                            status: 'Pending',
+                            timestamp: Date.now()
+                        });
+                        if (typeof renderAllViews === 'function') renderAllViews();
+                    }
+
+                    // 5. Reload data dari server di background (tidak blok UI)
+                    setTimeout(() => { if (typeof loadAllDataServer === 'function') loadAllDataServer(); }, 1500);
+
                 } else {
-                    showToast("Gagal mengirim: " + (res ? res.message : "Terjadi kesalahan server"), "error");
+                    showToast('Gagal mengirim: ' + (res ? res.message : 'Terjadi kesalahan server'), 'error');
                 }
             } catch (err) {
-                showToast("Error sistem: " + err.message, "error");
+                showToast('Error sistem: ' + err.message, 'error');
             } finally {
-                // UNLOCK TOMBOL SETELAH PROSES SELESAI TOTAL
+                // Pastikan tombol selalu ter-unlock
                 submitBtn.disabled = false;
                 submitBtn.style.pointerEvents = 'auto';
                 submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> <span>Kirim Pengajuan Lembur</span>';
@@ -2881,14 +2903,22 @@
         }
 
         function openEditModal(id) {
-            const req = overtimeRequests.find(r => r.id === id);
-            if (!req) return;
+            const req = overtimeRequests.find(r => String(r.id || r.ID || '') === String(id));
+            if (!req) { showToast('Data pengajuan tidak ditemukan.', 'error'); return; }
+
+            // Normalisasi format jam ke HH:MM (potong detik jika ada "17:00:00")
+            const normalizeTime = (t) => {
+                if (!t) return '';
+                const s = t.toString().trim();
+                // Ambil hanya 5 karakter pertama: "17:00"
+                return s.length >= 5 ? s.substring(0, 5) : s;
+            };
 
             document.getElementById('edit-id').value = req.id;
-            document.getElementById('edit-npk').value = req.npk;
-            document.getElementById('edit-tanggal').value = req.tanggal;
-            document.getElementById('edit-jam-mulai').value = req.jamMulai;
-            document.getElementById('edit-jam-selesai').value = req.jamSelesai;
+            document.getElementById('edit-npk').value = req.npk || '';
+            document.getElementById('edit-tanggal').value = req.tanggal || '';
+            document.getElementById('edit-jam-mulai').value = normalizeTime(req.jamMulai);
+            document.getElementById('edit-jam-selesai').value = normalizeTime(req.jamSelesai);
 
             const cabangRadio = document.querySelector(`input[name="edit-cabang"][value="${req.cabang}"]`);
             if (cabangRadio) cabangRadio.checked = true;
@@ -2913,7 +2943,7 @@
                 const otherRadio = document.getElementById('radio-edit-pekerjaan-lain');
                 if (otherRadio) otherRadio.checked = true;
                 toggleEditCustomPekerjaan(true);
-                customInput.value = req.pekerjaan;
+                if (customInput) customInput.value = req.pekerjaan || '';
             }
 
             calculateEditDuration();
@@ -2981,11 +3011,34 @@
             }
 
             if (res && res.success) {
-                showToast(res.message || 'Pengajuan lembur berhasil diperbarui.', 'success');
+                // 1. Update data lokal langsung agar tabel berubah SEGERA
+                const idx = overtimeRequests.findIndex(r => String(r.id || r.ID || '') === String(id));
+                if (idx !== -1) {
+                    overtimeRequests[idx] = {
+                        ...overtimeRequests[idx],
+                        cabang: payload.cabang,
+                        npk: payload.npk,
+                        nama: payload.nama,
+                        tanggal: payload.tanggal,
+                        jamMulai: payload.jamMulai,
+                        jamSelesai: payload.jamSelesai,
+                        durasiHours: payload.durasiHours,
+                        pekerjaan: payload.pekerjaan
+                    };
+                }
+
+                // 2. Tutup modal dan render ulang tampilan
                 closeEditModal();
-                loadAllDataServer();
+                if (typeof renderAllViews === 'function') renderAllViews();
+
+                // 3. Tampilkan notifikasi sukses
+                showToast(res.message || 'Pengajuan lembur berhasil diperbarui.', 'success');
+
+                // 4. Reload data dari server di background untuk sinkronisasi penuh
+                setTimeout(() => { if (typeof loadAllDataServer === 'function') loadAllDataServer(); }, 1000);
+
             } else {
-                alert(res ? res.message : "Gagal memperbarui data");
+                alert(res ? res.message : 'Gagal memperbarui data');
             }
         }
 
@@ -4010,7 +4063,51 @@
             }, 3000);
         }
 
-        // ==========================================
+        // Popup sukses besar (untuk konfirmasi submit pengajuan lembur)
+        function showSuccessPopup(title, bodyHtml) {
+            // Hapus popup lama jika ada
+            const existing = document.getElementById('success-popup-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'success-popup-overlay';
+            overlay.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4';
+            overlay.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all scale-95 opacity-0" id="success-popup-card">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-3xl"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-800 mb-2">${title}</h3>
+                    <p class="text-xs text-slate-500 mb-6 leading-relaxed">${bodyHtml}</p>
+                    <button onclick="document.getElementById('success-popup-overlay').remove(); navigateTo('history');"
+                        class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-clock-rotate-left mr-2"></i>Lihat Riwayat Lembur
+                    </button>
+                    <button onclick="document.getElementById('success-popup-overlay').remove();"
+                        class="w-full py-2 mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-all">
+                        Tutup & Buat Pengajuan Baru
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            // Animasi masuk
+            setTimeout(() => {
+                const card = document.getElementById('success-popup-card');
+                if (card) {
+                    card.classList.remove('scale-95', 'opacity-0');
+                    card.classList.add('scale-100', 'opacity-100');
+                }
+            }, 50);
+
+            // Auto tutup setelah 8 detik
+            setTimeout(() => {
+                const el = document.getElementById('success-popup-overlay');
+                if (el) el.remove();
+            }, 8000);
+        }
+
+
         // 7. MANAJEMEN DATA KARYAWAN (ADMIN ONLY)
         // ==========================================
         async function fetchKaryawanList() {
