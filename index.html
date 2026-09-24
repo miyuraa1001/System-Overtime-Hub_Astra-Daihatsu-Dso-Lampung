@@ -1691,17 +1691,15 @@
             const tbody = document.getElementById('history-table-body');
             if (!tbody) return;
 
-            // 1. Cek role dan NPK user yang sedang login
-            const myNpk = currentUser && currentUser.npk ? String(currentUser.npk).trim() : '';
-            let userRole = 'user';
-            if (typeof currentUserRole !== 'undefined' && currentUserRole) {
-                userRole = currentUserRole.toString().trim().toLowerCase();
-            } else if (currentUser && (currentUser.role || currentUser.role_name)) {
-                userRole = (currentUser.role || currentUser.role_name).toString().trim().toLowerCase();
-            }
-            const isAdmin = (userRole === 'admin' || userRole === 'hrd');
+            // 1. Ambil NPK user yang sedang login (semua kemungkinan field)
+            const myNpk = (
+                currentUser?.npk ||
+                currentUser?.NPK ||
+                currentUser?.Npk ||
+                ''
+            ).toString().trim().toLowerCase();
 
-            if (!myNpk && !isAdmin) {
+            if (!myNpk) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Silakan login untuk melihat riwayat lembur Anda.</td></tr>`;
                 return;
             }
@@ -1713,14 +1711,24 @@
 
             const listData = Array.isArray(overtimeRequests) ? overtimeRequests : [];
 
-            // 3. Filter berdasarkan role:
-            //    - Admin/HRD: tampilkan semua data
-            //    - User biasa: hanya tampilkan data NPK sendiri
-            const filteredHistory = listData.filter(r => {
-                const itemNpk = r.npk ? String(r.npk).trim() : '';
+            // DEBUG: tampilkan myNpk dan sample field data
+            if (listData.length > 0) {
+                console.log('[History] myNpk:', myNpk);
+                console.log('[History] sample item fields:', Object.keys(listData[0]), '| npk value:', listData[0].npk, listData[0].NPK);
+            }
 
-                // Cek kepemilikan data
-                if (!isAdmin && itemNpk !== myNpk) return false;
+            // 3. Filter SELALU hanya NPK milik user yang login
+            //    Normalisasi semua kemungkinan field nama NPK dari GAS (npk / NPK / Npk)
+            const filteredHistory = listData.filter(r => {
+                const itemNpk = (
+                    r.npk ||
+                    r.NPK ||
+                    r.Npk ||
+                    ''
+                ).toString().trim().toLowerCase();
+
+                // Wajib milik sendiri — tidak ada pengecualian role
+                if (itemNpk !== myNpk) return false;
 
                 // Cek filter tahun & bulan
                 let reqYear = '', reqMonth = '';
@@ -1729,11 +1737,9 @@
                     const parts = tStr.includes('-') ? tStr.split('-') : tStr.split('/');
                     if (parts.length === 3) {
                         if (parts[0].length === 4) {
-                            // Format: YYYY-MM-DD
                             reqYear = parts[0];
                             reqMonth = parseInt(parts[1], 10).toString();
                         } else if (parts[2].length === 4) {
-                            // Format: DD-MM-YYYY
                             reqYear = parts[2];
                             reqMonth = parseInt(parts[1], 10).toString();
                         }
@@ -1745,6 +1751,8 @@
 
                 return isYearMatch && isMonthMatch;
             });
+
+            console.log(`[History] Filtered ${filteredHistory.length} dari ${listData.length} total data untuk NPK: ${myNpk}`);
 
             // 4. Urutkan: terbaru dulu
             filteredHistory.sort((a, b) => {
@@ -1761,7 +1769,7 @@
             if (filteredHistory.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400">
                     <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-40"></i>
-                    ${isAdmin ? 'Tidak ada data lembur untuk periode ini.' : 'Tidak ada riwayat pengajuan lembur Anda untuk periode ini.'}
+                    Tidak ada riwayat pengajuan lembur Anda untuk periode ini.
                 </td></tr>`;
                 return;
             }
