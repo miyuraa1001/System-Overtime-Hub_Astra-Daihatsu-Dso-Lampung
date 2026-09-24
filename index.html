@@ -3331,9 +3331,11 @@
             reportModeLog = mode;
             rekapViewMode = mode;
         
-            // 2. Update tampilan visual tombol secara instan
+            // 2. Update tampilan visual tombol kedua toolbar secara instan
             const btnAsli = document.getElementById('btn-view-asli');
             const btnAdjust = document.getElementById('btn-view-adjust');
+            const btnClaimAsli = document.getElementById('btn-claim-view-asli');
+            const btnClaimAdjust = document.getElementById('btn-claim-view-adjust');
         
             if (btnAsli && btnAdjust) {
                 const activeClass = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
@@ -3341,6 +3343,14 @@
         
                 btnAsli.className = (mode === 'asli') ? activeClass : inactiveClass;
                 btnAdjust.className = (mode === 'adjust') ? activeClass : inactiveClass;
+            }
+
+            if (btnClaimAsli && btnClaimAdjust) {
+                const activeClaimClass = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                const inactiveClaimClass = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+        
+                btnClaimAsli.className = (mode === 'asli') ? activeClaimClass : inactiveClaimClass;
+                btnClaimAdjust.className = (mode === 'adjust') ? activeClaimClass : inactiveClaimClass;
             }
         
             // 3. Cek data adjustment: Ambil dari server HANYA JIKA memori lokal belum punya data
@@ -3365,28 +3375,38 @@
             reportModeRekap = mode;
             claimViewMode = mode;
         
-            // 2. Cek data adjustment: Ambil dari server HANYA JIKA memori lokal belum punya data
+            // 2. Update tampilan visual tombol kedua toolbar secara instan
+            const btnAsli = document.getElementById('btn-view-asli');
+            const btnAdjust = document.getElementById('btn-view-adjust');
+            const btnClaimAsli = document.getElementById('btn-claim-view-asli');
+            const btnClaimAdjust = document.getElementById('btn-claim-view-adjust');
+        
+            if (btnAsli && btnAdjust) {
+                const activeClass = "px-3 py-1.5 rounded-lg bg-white text-blue-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                const inactiveClass = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+        
+                btnAsli.className = (mode === 'asli') ? activeClass : inactiveClass;
+                btnAdjust.className = (mode === 'adjust') ? activeClass : inactiveClass;
+            }
+
+            if (btnClaimAsli && btnClaimAdjust) {
+                const activeClaimClass = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
+                const inactiveClaimClass = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
+        
+                btnClaimAsli.className = (mode === 'asli') ? activeClaimClass : inactiveClaimClass;
+                btnClaimAdjust.className = (mode === 'adjust') ? activeClaimClass : inactiveClaimClass;
+            }
+        
+            // 3. Cek data adjustment: Ambil dari server HANYA JIKA memori lokal belum punya data
             const hasLocalAdjustments = typeof adjustmentsMap !== 'undefined' && Object.keys(adjustmentsMap).length > 0;
             
             if (mode === 'adjust' && !hasLocalAdjustments && typeof fetchServerAdjustments === 'function') {
                 await fetchServerAdjustments();
             }
         
-            // 3. Render ulang tampilan tabel dari memori lokal (Instan & Tanpa Delay)
+            // 4. Render ulang tampilan tabel dari memori lokal (Instan & Tanpa Delay)
             if (typeof renderReportsView === 'function') {
                 renderReportsView();
-            }
-        
-            // 4. Update tampilan tombol aktif/nonaktif setelah DOM siap
-            const btnAsli = document.getElementById('btn-claim-view-asli');
-            const btnAdjust = document.getElementById('btn-claim-view-adjust');
-        
-            if (btnAsli && btnAdjust) {
-                const activeClass = "px-3 py-1.5 rounded-lg bg-white text-orange-600 shadow-sm transition-all font-bold whitespace-nowrap";
-                const inactiveClass = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-normal whitespace-nowrap";
-        
-                btnAsli.className = (mode === 'asli') ? activeClass : inactiveClass;
-                btnAdjust.className = (mode === 'adjust') ? activeClass : inactiveClass;
             }
         }
         
@@ -3497,7 +3517,8 @@
         
                         const poinAsli = (emp.asliL1 * 1.5) + (emp.asliL2 * 2.7);
                         const poinAdj = (emp.adjL1 * 1.5) + (emp.adjL2 * 2.7);
-                        const persenAdjust = poinAsli > 0 ? Math.round((poinAdj / poinAsli) * 100) : 100;
+                        // Jika mode Data Asli, persen selalu 100%. Jika mode Hasil Adjust, hitung persen hasil adjust
+                        const persenAdjust = isAdjustMode ? (poinAsli > 0 ? Math.round((poinAdj / poinAsli) * 100) : 100) : 100;
         
                         gL1 += l1; gL2 += l2; gPoin += totalPoin; gEst += estimasiLembur;
         
@@ -3514,7 +3535,7 @@
                                 <td class="py-3 px-4 text-center font-bold text-slate-900 border-r border-slate-100">${totalPoin.toFixed(2).replace('.', ',')}</td>
                                 <td class="py-3 px-4 text-right font-bold text-emerald-600 border-r border-slate-100">Rp ${estimasiLembur.toLocaleString('id-ID')}</td>
                                 <td class="py-3 px-4 text-center">
-                                    <button onclick="openAdjustModal('${emp.npk}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-sm">
+                                    <button onclick="openAdjustModal('${emp.npk}')" class="px-3 py-1.5 ${isAdjustMode && persenAdjust < 100 ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold rounded-lg text-xs shadow-sm transition-all">
                                         <i class="fa-solid fa-clock-rotate-left"></i> Adjust (${persenAdjust}%)
                                     </button>
                                 </td>
