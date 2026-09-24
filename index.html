@@ -447,27 +447,47 @@
                             <input type="hidden" id="form-nama">
                 
                             <div>
-                                <label class="block text-xs font-bold text-slate-800 mb-3">Cabang (Kode BA) <span class="text-rose-500">*</span></label>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
-                                        <input type="radio" name="form-cabang" value="D660" checked class="text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D660 - Ahmad Yani</span>
+                                <div class="flex items-center justify-between mb-2.5">
+                                    <label class="block text-xs font-bold text-slate-800">Cabang (Kode BA) <span class="text-rose-500">*</span></label>
+                                    <span id="cabang-lock-indicator" class="hidden inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                        <i class="fa-solid fa-lock text-[10px]"></i> <span id="cabang-lock-text">Terkunci sesuai NPK</span>
+                                    </span>
+                                </div>
+                                <div id="form-cabang-group" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <label class="cabang-radio-card flex items-center justify-between p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <div class="flex items-center min-w-0">
+                                            <input type="radio" name="form-cabang" value="D660" checked class="text-blue-600 focus:ring-blue-500">
+                                            <span class="ml-2.5 text-xs font-semibold text-slate-700 truncate">D660 - Ahmad Yani</span>
+                                        </div>
+                                        <span class="cabang-lock-icon hidden ml-2 text-[11px] text-blue-600 shrink-0"><i class="fa-solid fa-lock"></i></span>
                                     </label>
-                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
-                                        <input type="radio" name="form-cabang" value="D661" class="text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D661 - Soekarno Hatta</span>
+                                    <label class="cabang-radio-card flex items-center justify-between p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <div class="flex items-center min-w-0">
+                                            <input type="radio" name="form-cabang" value="D661" class="text-blue-600 focus:ring-blue-500">
+                                            <span class="ml-2.5 text-xs font-semibold text-slate-700 truncate">D661 - Soekarno Hatta</span>
+                                        </div>
+                                        <span class="cabang-lock-icon hidden ml-2 text-[11px] text-blue-600 shrink-0"><i class="fa-solid fa-lock"></i></span>
                                     </label>
-                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
-                                        <input type="radio" name="form-cabang" value="D662" class="text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D662 - Bandarjaya</span>
+                                    <label class="cabang-radio-card flex items-center justify-between p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <div class="flex items-center min-w-0">
+                                            <input type="radio" name="form-cabang" value="D662" class="text-blue-600 focus:ring-blue-500">
+                                            <span class="ml-2.5 text-xs font-semibold text-slate-700 truncate">D662 - Bandarjaya</span>
+                                        </div>
+                                        <span class="cabang-lock-icon hidden ml-2 text-[11px] text-blue-600 shrink-0"><i class="fa-solid fa-lock"></i></span>
                                     </label>
-                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
-                                        <input type="radio" name="form-cabang" value="D663" class="text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D663 - Kotabumi</span>
+                                    <label class="cabang-radio-card flex items-center justify-between p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <div class="flex items-center min-w-0">
+                                            <input type="radio" name="form-cabang" value="D663" class="text-blue-600 focus:ring-blue-500">
+                                            <span class="ml-2.5 text-xs font-semibold text-slate-700 truncate">D663 - Kotabumi</span>
+                                        </div>
+                                        <span class="cabang-lock-icon hidden ml-2 text-[11px] text-blue-600 shrink-0"><i class="fa-solid fa-lock"></i></span>
                                     </label>
-                                    <label class="flex items-center p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
-                                        <input type="radio" name="form-cabang" value="D664" class="text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2.5 text-xs font-semibold text-slate-700">D664 - Lampung Timur</span>
+                                    <label class="cabang-radio-card flex items-center justify-between p-3 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl cursor-pointer transition-all">
+                                        <div class="flex items-center min-w-0">
+                                            <input type="radio" name="form-cabang" value="D664" class="text-blue-600 focus:ring-blue-500">
+                                            <span class="ml-2.5 text-xs font-semibold text-slate-700 truncate">D664 - Lampung Timur</span>
+                                        </div>
+                                        <span class="cabang-lock-icon hidden ml-2 text-[11px] text-blue-600 shrink-0"><i class="fa-solid fa-lock"></i></span>
                                     </label>
                                 </div>
                             </div>
@@ -2337,7 +2357,8 @@
                 if (elNpk && elNpk.value) {
                     if (typeof autoSyncCabangByNpk === 'function') autoSyncCabangByNpk(elNpk.value);
                 } else {
-                    if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
+                    if (typeof setCabangLockState === 'function') setCabangLockState(false);
+                    else if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
                 }
                 if (typeof checkDailySubmissionLock === 'function') checkDailySubmissionLock();
             }
@@ -2604,9 +2625,59 @@
         }
 
         // ==========================================
-        // AUTO-SYNC CABANG SESUAI NPK DARI DATABASE
+        // AUTO-SYNC & LOCK CABANG SESUAI NPK DARI DATABASE
         // ==========================================
+        let isCabangLocked = false;
+
+        function setCabangLockState(locked, targetCode = null) {
+            isCabangLocked = !!locked;
+            const radios = document.querySelectorAll('input[name="form-cabang"]');
+            const indicator = document.getElementById('cabang-lock-indicator');
+            const lockText = document.getElementById('cabang-lock-text');
+
+            if (locked && targetCode) {
+                if (indicator) indicator.classList.remove('hidden');
+                if (lockText) lockText.innerText = `Terkunci sesuai NPK (${targetCode})`;
+
+                radios.forEach(r => {
+                    const card = r.closest('label');
+                    const lockIcon = card ? card.querySelector('.cabang-lock-icon') : null;
+                    if (r.value === targetCode) {
+                        r.checked = true;
+                        r.disabled = false;
+                        if (card) {
+                            card.classList.remove('opacity-35', 'grayscale', 'cursor-not-allowed', 'bg-slate-100', 'border-slate-200', 'hover:bg-blue-50/50');
+                            card.classList.add('border-blue-500', 'bg-blue-50/80', 'ring-2', 'ring-blue-500/20', 'pointer-events-none');
+                        }
+                        if (lockIcon) lockIcon.classList.remove('hidden');
+                    } else {
+                        r.checked = false;
+                        r.disabled = true;
+                        if (card) {
+                            card.classList.remove('border-blue-500', 'bg-blue-50/80', 'ring-2', 'ring-blue-500/20', 'hover:bg-blue-50/50');
+                            card.classList.add('opacity-35', 'grayscale', 'cursor-not-allowed', 'bg-slate-100', 'border-slate-200', 'pointer-events-none');
+                        }
+                        if (lockIcon) lockIcon.classList.add('hidden');
+                    }
+                });
+            } else {
+                if (indicator) indicator.classList.add('hidden');
+                radios.forEach(r => {
+                    r.disabled = false;
+                    const card = r.closest('label');
+                    const lockIcon = card ? card.querySelector('.cabang-lock-icon') : null;
+                    if (card) {
+                        card.classList.remove('opacity-35', 'grayscale', 'cursor-not-allowed', 'pointer-events-none', 'bg-slate-100');
+                        card.classList.add('cursor-pointer', 'hover:bg-blue-50/50');
+                    }
+                    if (lockIcon) lockIcon.classList.add('hidden');
+                });
+                highlightSelectedCabang();
+            }
+        }
+
         function highlightSelectedCabang() {
+            if (isCabangLocked) return;
             const radios = document.querySelectorAll('input[name="form-cabang"]');
             radios.forEach(r => {
                 const card = r.closest('label');
@@ -2627,7 +2698,7 @@
 
             if (!cleanNpk) {
                 if (infoEl) infoEl.classList.add('hidden');
-                highlightSelectedCabang();
+                setCabangLockState(false);
                 return;
             }
 
@@ -2670,23 +2741,20 @@
                 else if (rawCabang.includes('D664') || rawCabang.includes('TIMUR')) targetCode = 'D664';
                 else targetCode = rawCabang;
 
-                const targetRadio = document.querySelector(`input[name="form-cabang"][value="${targetCode}"]`);
-                if (targetRadio) {
-                    targetRadio.checked = true;
-                    highlightSelectedCabang();
-                }
+                // Kunci cabang otomatis sesuai NPK karyawan
+                setCabangLockState(true, targetCode);
 
                 // Tampilkan info karyawan & cabang otomatis
                 if (infoEl) {
                     const empName = foundKaryawan.nama || foundKaryawan.Nama || foundKaryawan.namaKaryawan || 'Karyawan';
                     infoEl.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-medium">
                         <i class="fa-solid fa-circle-check text-emerald-600"></i>
-                        <span><strong>${empName}</strong> — Cabang otomatis: <span class="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">${targetCode}</span></span>
+                        <span><strong>${empName}</strong> — Cabang terkunci otomatis: <span class="font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded border border-blue-200"><i class="fa-solid fa-lock text-[10px] mr-1"></i>${targetCode}</span></span>
                     </span>`;
                     infoEl.classList.remove('hidden');
                 }
             } else {
-                highlightSelectedCabang();
+                setCabangLockState(false);
                 if (infoEl) {
                     if (cleanNpk.length >= 3) {
                         infoEl.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-500 border border-slate-200">
@@ -2852,7 +2920,8 @@
                         elNpk.value = '';
                         const infoEl = document.getElementById('form-npk-info');
                         if (infoEl) infoEl.classList.add('hidden');
-                        if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
+                        if (typeof setCabangLockState === 'function') setCabangLockState(false);
+                        else if (typeof highlightSelectedCabang === 'function') highlightSelectedCabang();
                     }
                     if (typeof calculateFormDuration === 'function') calculateFormDuration();
 
