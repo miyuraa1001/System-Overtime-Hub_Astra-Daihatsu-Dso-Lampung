@@ -150,7 +150,7 @@
     <div class="flex-1 flex overflow-hidden">
         
         <!-- SIDEBAR (Khusus Layar Desktop - Layar Mobile Menggunakan Bottom Navigation) -->
-        <aside id="sidebar" class="hidden lg:flex lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200/80 flex-col justify-between transition-all duration-300">
+        <aside id="sidebar" class="hidden lg:flex lg:static lg:translate-x-0 inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200/80 flex-col justify-between transition-all duration-300">
             <div>
                 <div class="h-16 flex items-center justify-between px-6 border-b border-slate-100">
                     <div class="flex items-center gap-3">
@@ -2326,10 +2326,13 @@
             const target = document.getElementById(`page-${pageId}`);
             if (target) target.classList.remove('hidden');
         
-            try {
-                if (typeof closeSidebar === 'function') closeSidebar();
-            } catch (err) {
-                console.warn('Error in closeSidebar:', err);
+            // Sembunyikan sidebar hanya jika di layar mobile/tablet (< 1024px)
+            if (window.innerWidth < 1024 && typeof closeSidebar === 'function') {
+                try {
+                    closeSidebar();
+                } catch (err) {
+                    console.warn('Error in closeSidebar:', err);
+                }
             }
 
             try {
@@ -2491,16 +2494,19 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar) return;
             const isDesktop = window.innerWidth >= 1024;
 
-            if (isDesktop && sidebar) {
-                // Toggle sembunyikan sidebar di layar desktop
+            if (isDesktop) {
+                // Pastikan class translate off-screen dihilangkan di desktop
+                sidebar.classList.remove('-translate-x-full');
+                // Toggle sembunyikan/tampilkan sidebar di layar desktop
                 if (sidebar.classList.contains('lg:hidden')) {
                     sidebar.classList.remove('lg:hidden');
                 } else {
                     sidebar.classList.add('lg:hidden');
                 }
-            } else if (sidebar) {
+            } else {
                 // Toggle sidebar di layar HP/Tablet
                 if (sidebar.classList.contains('-translate-x-full')) {
                     sidebar.classList.remove('-translate-x-full');
@@ -2513,6 +2519,12 @@
 
         function closeSidebar() {
             const sidebar = document.getElementById('sidebar');
+            // Pada layar desktop (lebar >= 1024px), sidebar tetap tampil permanen dan tidak boleh ditutup
+            if (window.innerWidth >= 1024) {
+                if (sidebar) sidebar.classList.remove('-translate-x-full');
+                return;
+            }
+
             const backdrop = document.getElementById('sidebar-backdrop');
             if (sidebar) sidebar.classList.add('-translate-x-full');
             if (backdrop) backdrop.classList.add('hidden');
